@@ -1,163 +1,229 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/outreach_service.dart';
-import '../services/firestore_service.dart';
+import '../models/lead_model.dart';
+import '../models/startup_model.dart';
+import '../services/lead_service.dart';
+import 'auth_provider.dart';
 import 'startup_provider.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// OutreachProvider — Riverpod state for cold outreach generation
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Singleton service ─────────────────────────────────────────────────────
 
-// ── State ─────────────────────────────────────────────────────────────────────
+final leadServiceProvider = Provider<LeadService>((ref) => LeadService());
 
-enum OutreachStatus { idle, loading, success, error }
+// ── Live leads stream ─────────────────────────────────────────────────────
 
-class OutreachState {
-  final OutreachStatus status;
-  final OutreachResult? result;
-  final String? error;
+final leadsStreamProvider = StreamProvider.autoDispose<List<LeadModel>>((ref) {
+  final user    = ref.watch(authStateProvider).value;
+  final startup = ref.watch(startupNotifierProvider).value;
 
-  // Form fields (kept in state so they survive tab switches)
-  final String targetName;
-  final String targetCompany;
-  final String targetRole;
-  final String traction;
-  final String ask;
+  if (user == null || startup == null) return const Stream.empty();
 
-  const OutreachState({
-    this.status = OutreachStatus.idle,
-    this.result,
-    this.error,
-    this.targetName = '',
-    this.targetCompany = '',
-    this.targetRole = '',
-    this.traction = 'Early stage, building MVP',
-    this.ask = '15-minute intro call',
+  return ref.read(leadServiceProvider).watchLeads(
+    uid: user.uid,
+    startupId: startup.id,
+  );
+});
+
+// ── Lead Discovery State ─────────────────────────────────────────────────
+
+class LeadDiscoveryState {
+  final bool isLoading;
+  final List<LeadModel> discoveredLeads;   // fresh from API, not yet saved
+  final String? errorMessage;
+  final int emailsGenerated;
+  final int totalLeads;
+
+  const LeadDiscoveryState({
+    this.isLoading = false,
+    this.discoveredLeads = const [],
+    this.errorMessage,
+    this.emailsGenerated = 0,
+    this.totalLeads = 0,
   });
 
-  bool get isLoading => status == OutreachStatus.loading;
-  bool get hasResult => status == OutreachStatus.success && result != null;
-  bool get canGenerate =>
-      targetName.trim().isNotEmpty && targetCompany.trim().isNotEmpty;
-
-  OutreachState copyWith({
-    OutreachStatus? status,
-    OutreachResult? result,
-    String? error,
-    String? targetName,
-    String? targetCompany,
-    String? targetRole,
-    String? traction,
-    String? ask,
+  LeadDiscoveryState copyWith({
+    bool? isLoading,
+    List<LeadModel>? discoveredLeads,
+    String? errorMessage,
+    int? emailsGenerated,
+    int? totalLeads,
   }) =>
-      OutreachState(
-        status: status ?? this.status,
-        result: result ?? this.result,
-        error: error ?? this.error,
-        targetName: targetName ?? this.targetName,
-        targetCompany: targetCompany ?? this.targetCompany,
-        targetRole: targetRole ?? this.targetRole,
-        traction: traction ?? this.traction,
-        ask: ask ?? this.ask,
+      LeadDiscoveryState(
+        isLoading: isLoading ?? this.isLoading,
+        discoveredLeads: discoveredLeads ?? this.discoveredLeads,
+        errorMessage: errorMessage,
+        emailsGenerated: emailsGenerated ?? this.emailsGenerated,
+        totalLeads: totalLeads ?? this.totalLeads,
       );
 }
 
-// ── Notifier ──────────────────────────────────────────────────────────────────
+class LeadDiscoveryNotifier extends AutoDisposeAsyncNotifier<LeadDiscoveryState> {
+  @override
+  Future<LeadDiscoveryState> build() async => const LeadDiscoveryState();
 
-class OutreachNotifier extends StateNotifier<OutreachState> {
-  final Ref _ref;
-  final OutreachService _service;
+  /// Full auto-discovery flow:
+  /// 1. Find leads via Tavily + Gemini
+  /// 2. Save to Firestore
+  /// 3. Generate emails for all in background
+  Future<void> discoverAndGenerate({
+    required String targetCustomer,
+    required String founderName,
+    bool generateEmailsImmediately = true,
+  }) async {
+    final service = ref.read(leadServiceProvider);
+    final user    = ref.read(authStateProvider).value;
+    final startup = ref.read(startupNotifierProvider).value;
+    if (user == null || startup == null) return;
 
-  OutreachNotifier(this._ref, this._service) : super(const OutreachState());
+    // Phase 1: Discover
+    state = const AsyncValue.loading();
+    List<LeadModel> saved;
+    try {
+      final discovered = await service.discoverLeads(
+        startup: startup,
+        targetCustomer: targetCustomer,
+        searchRounds: 3,
+      );
 
-  void updateField({
-    String? targetName,
-    String? targetCompany,
-    String? targetRole,
-    String? traction,
-    String? ask,
-  }) {
-    state = state.copyWith(
-      targetName: targetName,
-      targetCompany: targetCompany,
-      targetRole: targetRole,
-      traction: traction,
-      ask: ask,
-    );
-  }
+      state = AsyncValue.data(LeadDiscoveryState(
+        isLoading: true,
+        discoveredLeads: discovered,
+        totalLeads: discovered.length,
+      ));
 
-  Future<void> generate() async {
-    if (!state.canGenerate) return;
+      saved = await service.saveLeadsToFirestore(
+        uid: user.uid,
+        startupId: startup.id,
+        leads: discovered,
+      );
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return;
+    }
 
-    state = state.copyWith(status: OutreachStatus.loading, error: null);
+    if (!generateEmailsImmediately) {
+      state = AsyncValue.data(LeadDiscoveryState(
+        discoveredLeads: saved,
+        totalLeads: saved.length,
+      ));
+      return;
+    }
+
+    // Phase 2: Generate emails in background
+    state = AsyncValue.data(LeadDiscoveryState(
+      isLoading: true,
+      discoveredLeads: saved,
+      totalLeads: saved.length,
+      emailsGenerated: 0,
+    ));
 
     try {
-      final startup = _ref.read(startupNotifierProvider).value;
-      final startupName = startup?.name ?? 'My Startup';
-      final startupIdea = startup?.idea ?? 'A great product';
-
-      final result = await _service.generate(
-        OutreachRequest(
-          targetName: state.targetName.trim(),
-          targetCompany: state.targetCompany.trim(),
-          targetRole: state.targetRole.trim().isEmpty
-              ? 'Decision maker'
-              : state.targetRole.trim(),
-          startupName: startupName,
-          startupIdea: startupIdea,
-          traction: state.traction.trim().isEmpty
-              ? 'Early stage, building MVP'
-              : state.traction.trim(),
-          ask: state.ask.trim().isEmpty
-              ? '15-minute intro call'
-              : state.ask.trim(),
-        ),
+      await service.generateEmailsForAllLeads(
+        leads: saved,
+        startup: startup,
+        founderName: founderName,
+        uid: user.uid,
+        startupId: startup.id,
+        onProgress: (completed, total) {
+          state = AsyncValue.data(LeadDiscoveryState(
+            isLoading: completed < total,
+            discoveredLeads: saved,
+            totalLeads: total,
+            emailsGenerated: completed,
+          ));
+        },
       );
-
-      state = state.copyWith(
-        status: OutreachStatus.success,
-        result: result,
-      );
-
-      // Save to Firestore outreach collection
-      final startupId = _ref.read(startupIdProvider);
-      if (startupId.isNotEmpty) {
-        await _ref.read(firestoreServiceProvider).saveOutreach(
-          startupId,
-          {
-            'target_name': state.targetName.trim(),
-            'target_company': state.targetCompany.trim(),
-            'target_role': state.targetRole.trim().isEmpty
-                ? 'Decision maker'
-                : state.targetRole.trim(),
-            'email_body': result.coldEmailBody,
-            'call_script': result.callScript,
-            'followups': result.followUps
-                .map((f) => {
-                      'day': f.day,
-                      'subject': f.subject,
-                      'body': f.body,
-                    })
-                .toList(),
-          },
-        );
-      }
     } catch (e) {
-      state = state.copyWith(
-        status: OutreachStatus.error,
-        error: e.toString().replaceFirst('Exception: ', ''),
+      // Non-fatal — leads are saved, just emails failed
+      state = AsyncValue.data(LeadDiscoveryState(
+        discoveredLeads: saved,
+        totalLeads: saved.length,
+        errorMessage: 'Email generation partially failed: ${e.toString()}',
+      ));
+      return;
+    }
+
+    state = AsyncValue.data(LeadDiscoveryState(
+      discoveredLeads: saved,
+      totalLeads: saved.length,
+      emailsGenerated: saved.length,
+    ));
+  }
+}
+
+final leadDiscoveryProvider =
+    AsyncNotifierProvider.autoDispose<LeadDiscoveryNotifier, LeadDiscoveryState>(
+  LeadDiscoveryNotifier.new,
+);
+
+// ── Investor Discovery State ──────────────────────────────────────────────
+
+class InvestorDiscoveryState {
+  final bool isLoading;
+  final List<DiscoveredInvestor> investors;
+  final String? errorMessage;
+
+  const InvestorDiscoveryState({
+    this.isLoading = false,
+    this.investors = const [],
+    this.errorMessage,
+  });
+
+  InvestorDiscoveryState copyWith({
+    bool? isLoading,
+    List<DiscoveredInvestor>? investors,
+    String? errorMessage,
+  }) =>
+      InvestorDiscoveryState(
+        isLoading: isLoading ?? this.isLoading,
+        investors: investors ?? this.investors,
+        errorMessage: errorMessage,
       );
+}
+
+class InvestorDiscoveryNotifier
+    extends AutoDisposeAsyncNotifier<InvestorDiscoveryState> {
+  @override
+  Future<InvestorDiscoveryState> build() async =>
+      const InvestorDiscoveryState();
+
+  Future<void> discover({String geography = 'India'}) async {
+    final service = ref.read(leadServiceProvider);
+    final startup = ref.read(startupNotifierProvider).value;
+    if (startup == null) return;
+
+    state = const AsyncValue.loading();
+    try {
+      final investors = await service.discoverInvestors(
+        startup: startup,
+        geography: geography,
+      );
+      state = AsyncValue.data(InvestorDiscoveryState(investors: investors));
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
     }
   }
 
-  void reset() => state = const OutreachState();
+  Future<void> enrichInvestorAt(int index, StartupModel startup) async {
+    final current = state.value;
+    if (current == null) return;
+
+    final service  = ref.read(leadServiceProvider);
+    final investor = current.investors[index];
+    try {
+      final enriched = await service.enrichInvestor(
+        investor: investor,
+        startup: startup,
+      );
+      final updated = List<DiscoveredInvestor>.from(current.investors)
+        ..[index] = enriched;
+      state = AsyncValue.data(current.copyWith(investors: updated));
+    } catch (e) {
+      // Non-fatal
+    }
+  }
 }
 
-// ── Providers ─────────────────────────────────────────────────────────────────
-
-final outreachServiceProvider =
-    Provider<OutreachService>((_) => OutreachService());
-
-final outreachProvider =
-    StateNotifierProvider<OutreachNotifier, OutreachState>((ref) {
-  return OutreachNotifier(ref, ref.read(outreachServiceProvider));
-});
+final investorDiscoveryProvider = AsyncNotifierProvider.autoDispose<
+    InvestorDiscoveryNotifier, InvestorDiscoveryState>(
+  InvestorDiscoveryNotifier.new,
+);

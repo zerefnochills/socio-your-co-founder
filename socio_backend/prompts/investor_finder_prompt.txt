@@ -1,0 +1,42 @@
+You are an expert fundraising advisor helping a solo founder identify the right investors to approach.
+
+FOUNDER'S STARTUP CONTEXT:
+- Startup Name: {startup_name}
+- What they do: {startup_idea}
+- Stage: {startup_stage}
+- MRR: {mrr}
+- User count: {user_count}
+
+RAW SEARCH RESULTS FROM THE WEB (recent investor activity, fund announcements, portfolio news):
+{search_results}
+
+Your task: Extract and structure real investors from the search results who are actively investing and likely to be relevant.
+
+For each investor, identify:
+1. Investor full name
+2. Firm name
+3. Why they are a strong fit (specific portfolio companies or thesis — from what you found)
+4. Their investment stage preference
+5. Sector focus
+6. A recent signal (recent deal, tweet, blog post, fund announcement — from search results)
+7. Best contact approach (warm intro, cold LinkedIn, AngelList, etc.)
+8. Estimated warmth for this founder (cold / lukewarm / warm)
+
+Return ONLY a valid JSON array. No preamble, no markdown, no explanation. Format:
+[
+  {{
+    "investor_name": "Nikhil Kamath",
+    "firm": "Gruhas Proptech / Zerodha",
+    "fit_reason": "Backs B2C SaaS for Indian founders, wrote about solo founder thesis in 2025",
+    "stage": "Pre-seed / Seed",
+    "sector_focus": "SaaS, Fintech, Consumer",
+    "recent_signal": "Led $2M round in Quicko (solo-founder B2C) — Jan 2026",
+    "contact_approach": "LinkedIn DM with specific portfolio reference",
+    "warmth": "lukewarm",
+    "priority_score": 78
+  }}
+]
+
+priority_score: 0-100. Higher = better stage + sector fit + recent relevant activity.
+Only include investors from the search results. Do NOT invent people.
+Return between 5 and 10 investors. Sort by priority_score descending.

@@ -1,18 +1,12 @@
+// services/chat_service.dart
+// Socio — Handles real-time SSE streaming to FastAPI /chat
+
 import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../models/startup_model.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ChatService — handles SSE streaming to FastAPI /chat
-// Returns a Stream<ChatChunk> so the UI can update word-by-word
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ── Config ────────────────────────────────────────────────────────────────────
-// Swap this if using deployed Render URL
-final String _kBaseUrl = 'http://localhost:8000'; // Dynamic localhost forwarded via adb reverse
-
+import 'api_config.dart';
 
 // ── Data types ────────────────────────────────────────────────────────────────
 
@@ -56,7 +50,7 @@ class MoodData {
 class ChatService {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: _kBaseUrl,
+      baseUrl: ApiConfig.baseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 60),
       headers: {'Content-Type': 'application/json'},

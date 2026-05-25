@@ -12,6 +12,7 @@ import '../app_theme.dart';
 import '../models/investor_model.dart';
 import '../providers/pipeline_provider.dart';
 import '../providers/startup_provider.dart';
+import '../providers/outreach_provider.dart';
 import '../services/firestore_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -787,25 +788,12 @@ class _InvestorDetailSheetState
 
     try {
       final startup = ref.read(startupNotifierProvider).value;
-      final dio = Dio();
-      final host = kIsWeb ? 'localhost:8000' : '10.0.2.2:8000';
-      final resp = await dio.post(
-        'http://$host/investor-followup',
-        data: {
-          'investor_name': widget.investor.name,
-          'investor_firm': widget.investor.firm,
-          'meeting_notes': widget.investor.notes,
-          'days_since_contact': widget.investor.daysSinceContact,
-          'status': widget.investor.status.label,
-          'startup_name': startup?.name ?? 'My Startup',
-          'traction': startup != null
-              ? 'MRR: ₹${startup.mrr}, Users: ${startup.userCount}'
-              : 'Early stage, building MVP',
-        },
+      final data = await ref.read(leadServiceProvider).generateFollowUp(
+        investor: widget.investor,
+        startup: startup,
       );
 
-
-      final email = resp.data['email'] ?? resp.data['follow_up_email'] ?? '';
+      final email = data['email'] ?? data['follow_up_email'] ?? '';
       setState(() {
         _followUpEmail = email;
         _generatingFollowUp = false;
