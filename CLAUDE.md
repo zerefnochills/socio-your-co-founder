@@ -1,6 +1,6 @@
 # CLAUDE.md — Socio Project Master Guide
 > This file is read by Claude at the start of every session. Keep it updated as features are built.
-> Last updated: May 2026 | Version: 1.0 | Status: Backend Setup Complete
+> Last updated: May 2026 | Version: 1.2 | Status: Backend Complete + Prompts Fixed ✅
 
 ---
 
@@ -54,23 +54,24 @@ socio_app/                  ← Flutter frontend (Android + iOS)
     widgets/
       chat_bubble.dart
       investor_card.dart
-      socio_insight_card.dart
+      jordan_insight_card.dart
       mood_chart.dart
     navigation/
       main_navigation.dart
   pubspec.yaml
   android/app/google-services.json
 
-socio_backend/              ← FastAPI backend (Python)
-  main.py                   ← All endpoints
-  socio_system_prompt.txt  ← Socio AI persona prompt
-  mood_classifier_prompt.txt
-  cold_email_prompt.txt
-  investor_followup_prompt.txt
-  stress_test_prompt.txt
+socio_backend/              ← FastAPI backend (Python) ✅ COMPLETE
+  main.py                   ← All 5 endpoints built and tested
+  prompts/                  ← All prompts fixed and verified ✅
+    socio_system_prompt.txt
+    mood_classifier_prompt.txt
+    cold_email_prompt.txt
+    investor_followup_prompt.txt
+    stress_test_prompt.txt
   requirements.txt
-  .env                      ← API keys (never commit this)
-  Procfile                  ← For Render deployment
+  .env                      ← API keys (NEVER commit this)
+  Procfile                  ← Render deployment config ✅
 ```
 
 ---
@@ -95,7 +96,7 @@ socio_backend/              ← FastAPI backend (Python)
 |---|---|
 | Framework | FastAPI (Python) |
 | Hosting | Render (free tier) |
-| Primary LLM | Google Gemini 2.5 Flash |
+| Primary LLM | Google Gemini 2.0 Flash (streaming) |
 | Speed fallback | Groq Llama 3.3 70B |
 | Tertiary LLM | OpenRouter |
 | Web search | Tavily API |
@@ -126,27 +127,46 @@ Border:       #E2E8F0
 
 **Font:** Inter or DM Sans via Google Fonts
 **Border radius:** 16px cards, 12px buttons, 99px chips
-**Padding:** 16px screen padding, 12px card padding
 **Design reference:** Pi AI app (Mobbin) — warm, minimal, human
 
 ---
 
-## 🔌 API Endpoints
+## 🔌 API Endpoints (ALL BUILT ✅)
 
 ### POST /chat
-Accepts message + startup context + chat history. Returns SSE stream with mood data then text chunks.
+SSE stream. Mood classifier (Groq) runs first → builds persona-weighted system prompt → streams Gemini response → falls back to Groq if Gemini fails.
+First SSE chunk: `{type: "mood", data: {...}}` — Flutter reads this for mood UI.
+Text chunks: `{type: "text", data: "..."}`.
+Final: `{type: "done"}`.
 
 ### POST /outreach
-Accepts target name + company + founder context. Calls Tavily to research target, Groq/Gemini to generate cold email + call script + follow-up sequence. Returns JSON.
+Tavily researches target → Groq generates cold email + call script + 3-part follow-up sequence. Returns JSON.
 
 ### POST /investor-followup
-Accepts investor details + meeting notes + days since contact. Returns personalised follow-up email JSON.
+Accepts investor details + meeting notes + days since contact. Returns personalised follow-up email JSON with send_as_reply flag.
 
 ### POST /stress-test
-Accepts startup idea + founder context. Returns full stress test analysis with assumption extraction, scorecard, verdict.
+Full startup stress test. Returns structured analysis text (not JSON — Groq free-text).
 
 ### GET /health
-Returns backend status. Use this to confirm deployment is live.
+Returns `{"status": "Socio backend is running", "team": "Doppelganger", "hackathon": "QuantCraft 2026"}`.
+
+---
+
+## ⚠️ PROMPT FORMAT CONTRACT
+
+> **Critical:** All prompts use Python `.format()` — placeholder names must match exactly or the app crashes.
+
+| Prompt file | Placeholders expected by main.py |
+|---|---|
+| `socio_system_prompt.txt` | `startup_name`, `startup_idea`, `startup_stage`, `mrr`, `user_count`, `last_updated`, `chat_history`, `founder_name`, `persona_weights` |
+| `mood_classifier_prompt.txt` | `message`, `recent_history` |
+| `cold_email_prompt.txt` | `target_name`, `target_company`, `target_role`, `tavily_research`, `startup_name`, `startup_idea`, `traction`, `ask` |
+| `investor_followup_prompt.txt` | `investor_name`, `investor_firm`, `meeting_notes`, `days_since_contact`, `status`, `startup_name`, `traction` |
+| `stress_test_prompt.txt` | `idea`, `context` |
+
+> JSON inside prompt files must use `{{` and `}}` to escape braces (Python format string rule).
+> All 5 prompts verified correct as of May 2026. ✅
 
 ---
 
@@ -156,58 +176,56 @@ Returns backend status. Use this to confirm deployment is live.
 |---|---|---|---|
 | Google Sign-In | 🔲 Not built | Auth | Firebase Auth |
 | Onboarding | 🔲 Not built | onboarding_screen.dart | 3-step setup |
-| Chat with Socio AI | 🚧 In progress | chat_screen.dart | Core feature (Backend `/chat` SSE streaming built) |
-| Adaptive persona | ✅ Built (Backend) | Backend | Mood classifier & weighting (Fast Groq call built) |
+| Chat with Socio AI | 🔲 Frontend pending | chat_screen.dart | Backend `/chat` SSE ✅ |
+| Adaptive persona | ✅ Built (Backend) | Backend | Mood classifier + weighting ✅ |
 | Voice input (STT) | 🔲 Not built | chat_screen.dart | speech_to_text |
 | Voice output (TTS) | 🔲 Not built | chat_screen.dart | flutter_tts |
 | Activity tracker | 🔲 Not built | tracker_screen.dart | Metrics + meetings |
 | Daily standup push | 🔲 Not built | Backend + FCM | 9am notification |
-| Cold email writer | 🚧 In progress | outreach_screen.dart | Tavily + Gemini (Backend `/outreach` built) |
-| Cold call script | 🚧 In progress | outreach_screen.dart | Part of outreach (Backend `/outreach` built) |
-| Follow-up sequences | 🚧 In progress | outreach_screen.dart | Day 1/3/7 (Backend `/outreach` built) |
-| Investor pipeline | 🚧 In progress | pipeline_screen.dart | Kanban + nudges (Backend `/investor-followup` built) |
-| Mood detector | 🚧 In progress | mood_screen.dart | Passive sentiment (Backend classification built) |
-| Founder SOS | 🚧 In progress | mood_screen.dart | Crisis mode (Backend `needs_sos` detector built) |
+| Cold email writer | 🔲 Frontend pending | outreach_screen.dart | Backend `/outreach` ✅ |
+| Cold call script | 🔲 Frontend pending | outreach_screen.dart | Part of `/outreach` ✅ |
+| Follow-up sequences | 🔲 Frontend pending | outreach_screen.dart | Backend `/outreach` ✅ |
+| Investor pipeline | 🔲 Frontend pending | pipeline_screen.dart | Backend `/investor-followup` ✅ |
+| Mood detector | 🔲 Frontend pending | mood_screen.dart | Backend classification ✅ |
+| Founder SOS | 🔲 Frontend pending | mood_screen.dart | Backend `needs_sos` ✅ |
+| Stress test | 🔲 Frontend pending | — | Backend `/stress-test` ✅ |
 | Document vault | 🔲 Not built | Future scope | Firebase Storage |
-| Competitor radar | 🔲 Not built | Future scope | Tavily weekly |
-| Team task manager | 🔲 Not built | Future scope | Multi-user |
-
-> Update status to ✅ Built, 🚧 In progress, or 🔲 Not built as you go
 
 ---
 
-## 🤖 AI Prompts Reference
+## 🚀 Render Deployment Checklist
 
-All prompts are stored as .txt files in `socio_backend/`. These are the file names:
+Before deploying to Render:
+- [ ] `.env` file is NOT committed (check `git status`)
+- [ ] `requirements.txt` has all dependencies: `fastapi uvicorn[standard] httpx python-dotenv pydantic`
+- [ ] `Procfile` exists: `web: uvicorn main:app --host 0.0.0.0 --port $PORT`
+- [ ] All 5 prompts verified (see contract table above)
 
-- `socio_system_prompt.txt` — Main Socio AI persona with adaptive blending
-- `mood_classifier_prompt.txt` — Fast Groq call to classify emotion + persona weights
-- `cold_email_prompt.txt` — Generates email + call script + follow-up sequence
-- `investor_followup_prompt.txt` — Personalised investor follow-up message
-- `stress_test_prompt.txt` — Full idea stress test with scorecard
-
----
-
-## 🔑 Environment Variables
-
-Stored in `socio_backend/.env` — NEVER commit this file:
-
-```
-GEMINI_API_KEY=
-GROQ_API_KEY=
-TAVILY_API_KEY=
-```
+Render setup steps:
+1. New Web Service → connect GitHub repo
+2. Root Directory: `socio_backend`
+3. Build Command: `pip install -r requirements.txt`
+4. Start Command: (auto-reads Procfile)
+5. Environment Variables: add `GEMINI_API_KEY`, `GROQ_API_KEY`, `TAVILY_API_KEY`
+6. Hit `/health` to confirm live
 
 ---
 
-## 📱 Screens & Navigation
+## ⚡ Build Priority Order (Hackathon)
 
-Bottom navigation bar with 5 tabs:
-1. **Socio** (chat icon) → chat_screen.dart
-2. **Tracker** (calendar icon) → tracker_screen.dart
-3. **Outreach** (mail icon) → outreach_screen.dart
-4. **Pipeline** (chart icon) → pipeline_screen.dart
-5. **More** (dots icon) → mood_screen.dart + settings
+1. ✅ FastAPI backend — all 5 endpoints
+2. ✅ All prompts written and verified
+3. 🔲 Deploy to Render + test all endpoints via Postman
+4. 🔲 Firebase project setup + google-services.json
+5. 🔲 Flutter app shell + bottom navigation
+6. 🔲 Onboarding screen (3-step)
+7. 🔲 Chat screen — connect to `/chat` SSE **(4 hours — most important)**
+8. 🔲 Cold outreach screen — connect to `/outreach`
+9. 🔲 Investor pipeline screen
+10. 🔲 UI polish
+11. 🔲 Mood screen
+12. 🔲 Push notifications
+13. 🔲 APK build + demo prep
 
 ---
 
@@ -215,76 +233,39 @@ Bottom navigation bar with 5 tabs:
 
 ```
 users/{uid}/
-  name: string
-  email: string
-  created_at: timestamp
+  name, email, created_at
 
   startups/{startup_id}/
-    name: string
-    idea: string
-    stage: string
-    mrr: number
-    user_count: number
-    updated_at: timestamp
+    name, idea, stage, mrr, user_count, updated_at
 
     messages/{message_id}/
       role: "user" | "socio"
-      content: string
-      mood_score: number
-      timestamp: timestamp
+      content, mood_score, timestamp
 
     investors/{investor_id}/
-      name: string
-      firm: string
-      status: "pitched" | "follow-up" | "warm" | "passed"
-      notes: string
-      last_contact: timestamp
+      name, firm, status, notes, last_contact
 
     outreach/{outreach_id}/
-      target_name: string
-      target_company: string
-      email_body: string
-      call_script: string
-      followups: map
-      created_at: timestamp
+      target_name, target_company, email_body, call_script, followups, created_at
 
     mood_logs/{log_id}/
-      score: number
-      emotion: string
-      timestamp: timestamp
+      score, emotion, timestamp
 ```
-
----
-
-## ⚡ Build Priority Order (Hackathon)
-
-1. ✅ FastAPI backend skeleton + Gemini integration (All core API endpoints completed)
-2. 🔲 Firestore + Firebase Auth
-3. 🔲 Onboarding screen
-4. 🔲 Chat screen (4 hours — most important)
-5. 🔲 Cold outreach engine
-6. 🔲 Investor pipeline
-7. 🔲 Bottom navigation + app shell
-8. 🔲 UI polish
-9. 🔲 Mood screen
-10. 🔲 Push notifications
-11. 🔲 Bug fix + stress test
-12. 🔲 APK build + demo prep
 
 ---
 
 ## 🚨 Critical Rules
 
-- API keys NEVER go in Flutter code — only in backend .env
-- All LLM calls go through FastAPI — never direct from Flutter
-- LLM waterfall order: Gemini → Groq → OpenRouter
-- Test every endpoint in Postman before wiring to Flutter
-- Build backend endpoint first, then Flutter UI — never reverse
-- Take TRAE screenshots after building each major feature
+- API keys NEVER in Flutter code — only in backend `.env`
+- All LLM calls through FastAPI — never direct from Flutter
+- LLM waterfall: Gemini → Groq → OpenRouter
+- Test every endpoint in Postman before wiring Flutter
+- Backend first, then Flutter UI — never reverse
+- Prompts use Python `.format()` — any `{` in JSON inside prompts MUST be `{{`
 
 ---
 
-## 📸 TRAE Proof Screenshots Required
+## 📸 TRAE Proof Screenshots
 
 | Screenshot | Feature | Timing |
 |---|---|---|
@@ -295,32 +276,27 @@ users/{uid}/
 
 ---
 
-## 🎤 Pitch Information
+## 🎤 Pitch
 
-**Opening line:** "Before I begin — how many of you have ever had to make a really important decision completely alone?"
+**Opening:** "Before I begin — how many of you have ever had to make a really important decision completely alone?"
 
-**Closing line:** "Every founder deserves a co-founder. Now they have one."
+**Closing:** "Every founder deserves a co-founder. Now they have one."
 
-**Key differentiators vs ChatGPT:**
-1. Persistent startup memory across sessions
-2. Proactive daily nudges (not reactive)
-3. Context shared across all features
-4. Mobile-first with push notifications
-5. Adaptive persona — no manual mode switching
+**vs ChatGPT:** Memory across sessions, proactive daily nudges, context shared across features, mobile-first + push notifications, adaptive persona with no mode switching.
 
 **Revenue:** Free → Pro Rs.1,599/month → Enterprise white-label
-
 **Market:** 50M solo founders globally, $15B+ tools market
 
 ---
 
-## 📝 How to Use This File
+## 🔄 Update Log
 
-When starting a new Claude session during the hackathon:
-1. Paste the contents of this file at the start
-2. Tell Claude what you just built and what you're building next
-3. Claude will update recommendations based on current status
-4. After building a feature, update the Feature Status table
+| Date | Update |
+|---|---|
+| May 2026 | Initial file created — pre-hackathon |
+| May 2026 | All 5 AI prompts written (jordan/socio, mood, cold email, investor followup, stress test) |
+| May 2026 | Critical fix: all prompt placeholders corrected to match main.py format() calls. All 5 verified clean. |
 
 ---
-*This file was created pre-hackathon and should be updated continuously throughout the 24-hour build.*
+
+*Update this file after every feature build. Mark status in the Feature Status table.*
