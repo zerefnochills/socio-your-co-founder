@@ -90,6 +90,7 @@ class StartupContext(BaseModel):
     startup_stage: str = "Idea stage"
     mrr:           str = "0"
     user_count:    str = "0"
+    customPersona: Optional[str] = ""
 
 class MessageItem(BaseModel):
     role:    str  # "user" or "socio"
@@ -114,7 +115,7 @@ class ChatRequest(BaseModel):
         # 2. Normalize context nested vs flat
         if "context" not in data or data["context"] is None:
             ctx = {}
-            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count"]:
+            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count", "customPersona"]:
                 if k in data:
                     ctx[k] = data.get(k)
             data["context"] = ctx
@@ -137,7 +138,7 @@ class OutreachRequest(BaseModel):
         
         if "context" not in data or data["context"] is None:
             ctx = {}
-            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count"]:
+            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count", "customPersona"]:
                 if k in data:
                     ctx[k] = data.get(k)
             data["context"] = ctx
@@ -161,7 +162,7 @@ class InvestorFollowupRequest(BaseModel):
         
         if "context" not in data or data["context"] is None:
             ctx = {}
-            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count"]:
+            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count", "customPersona"]:
                 if k in data:
                     ctx[k] = data.get(k)
             data["context"] = ctx
@@ -180,7 +181,7 @@ class StressTestRequest(BaseModel):
         
         if "context" not in data or data["context"] is None:
             ctx = {}
-            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count"]:
+            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count", "customPersona"]:
                 if k in data:
                     ctx[k] = data.get(k)
             data["context"] = ctx
@@ -217,7 +218,7 @@ def build_socio_system_prompt(
 
     template = load_prompt("socio_system_prompt.txt")
 
-    return template.format(
+    prompt = template.format(
         startup_name=context.startup_name,
         startup_idea=context.startup_idea or "Not described yet",
         startup_stage=context.startup_stage,
@@ -228,6 +229,16 @@ def build_socio_system_prompt(
         founder_name=founder_name,
         persona_weights=weights_text
     )
+
+    if context.customPersona:
+        prompt += (
+            f"\n\n---"
+            f"\n\n## CUSTOM CO-FOUNDER PERSONA INSTRUCTIONS\n\n"
+            f"The founder has set a custom style, focus, and background for you. Always integrate this into your persona:\n"
+            f"{context.customPersona}\n"
+        )
+
+    return prompt
 
 # ── Mood classifier (fast Groq call) ─────────────────────────
 async def classify_mood(

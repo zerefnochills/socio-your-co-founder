@@ -48,11 +48,11 @@ class StandupService {
 
     await _localNotifications.zonedSchedule(
       0, // Notification ID
-      'Daily Founder Standup ☀️',
+      'Daily Founder Standup',
       'What is the single blocker keeping you from growing today?',
       _nextInstanceOfNineAM(),
       platformDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time, // Repeats daily at this time
@@ -78,7 +78,7 @@ class StandupService {
     if (response.payload == 'standup_prompt') {
       // In a full implementation, this would use a GlobalKey<NavigatorState>
       // or Riverpod's navigation to push the ChatScreen.
-      debugPrint("🔔 User tapped standup! Routing to chat to answer blockers.");
+      debugPrint("User tapped standup! Routing to chat to answer blockers.");
     }
   }
 

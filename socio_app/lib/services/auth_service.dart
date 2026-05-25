@@ -5,8 +5,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  GoogleSignIn? _googleSignInInstance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  GoogleSignIn get _googleSignIn {
+    _googleSignInInstance ??= GoogleSignIn();
+    return _googleSignInInstance!;
+  }
 
   // ── Mock In-Memory Authentication State ───────────────────────
   static User? _mockUser;
@@ -117,14 +122,16 @@ class AuthService {
     // If doc already exists, don't overwrite — just let them in
   }
 
-  // ── Sign out ──────────────────────────────────────────────────
   Future<void> signOut() async {
     _mockUser = null;
     _mockAuthChanges.add(null);
-    await Future.wait([
-      _auth.signOut(),
-      _googleSignIn.signOut(),
-    ]);
+    final List<Future> signOutFutures = [_auth.signOut()];
+    try {
+      if (_googleSignInInstance != null) {
+        signOutFutures.add(_googleSignInInstance!.signOut());
+      }
+    } catch (_) {}
+    await Future.wait(signOutFutures);
   }
 
   // ── Get user display name ─────────────────────────────────────

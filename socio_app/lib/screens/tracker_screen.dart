@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../app_theme.dart';
+import '../models/startup_model.dart';
+import '../providers/startup_provider.dart';
+import '../providers/auth_provider.dart';
+import 'competitor_radar_screen.dart';
 
 /// Socio Tracker Screen — refined premium dashboard.
 /// Aesthetic: Warm editorial luxury. Premium metrics and VC checklist.
@@ -14,11 +18,6 @@ class TrackerScreen extends ConsumerStatefulWidget {
 }
 
 class _TrackerScreenState extends ConsumerState<TrackerScreen> {
-  // Mock startup metrics
-  int userCount = 1200;
-  int mrr = 15990; // Rs.15990
-  String stage = 'Pre-Seed';
-
   // Checklist items
   final List<Map<String, dynamic>> _todoItems = [
     {'task': 'Follow up with Apex Ventures re: demo', 'done': false},
@@ -28,10 +27,13 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
     {'task': 'Complete daily wellness standup check-in', 'done': false},
   ];
 
-  void _showMetricsEditDialog() {
-    final userController = TextEditingController(text: userCount.toString());
-    final mrrController = TextEditingController(text: mrr.toString());
-    String selectedStage = stage;
+  void _showMetricsEditDialog(StartupModel startup) {
+    final nameController = TextEditingController(text: startup.name);
+    final ideaController = TextEditingController(text: startup.idea);
+    final userController = TextEditingController(text: startup.userCount);
+    final mrrController = TextEditingController(text: startup.mrr);
+    final customPersonaController = TextEditingController(text: startup.customPersona);
+    String selectedStage = startup.stage;
 
     showDialog(
       context: context,
@@ -40,46 +42,73 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
           backgroundColor: SocioTheme.creamBg,
           shape: const RoundedRectangleBorder(borderRadius: SocioTheme.radiusMd),
           title: Text(
-            'Update Startup Metrics',
+            'Update Startup Profile',
             style: GoogleFonts.outfit(
               fontWeight: FontWeight.bold,
               color: SocioTheme.slateText,
               fontSize: 18,
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: userController,
-                keyboardType: TextInputType.number,
-                style: GoogleFonts.dmSans(color: SocioTheme.slateText),
-                decoration: const InputDecoration(labelText: 'Total Active Users'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: mrrController,
-                keyboardType: TextInputType.number,
-                style: GoogleFonts.dmSans(color: SocioTheme.slateText),
-                decoration: const InputDecoration(labelText: 'Monthly Recurring Revenue (Rs.)'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: selectedStage,
-                dropdownColor: SocioTheme.creamBg,
-                style: GoogleFonts.dmSans(color: SocioTheme.slateText),
-                items: ['Idea', 'MVP', 'Pre-Seed', 'Seed', 'Series A']
-                    .map((val) => DropdownMenuItem(
-                          value: val,
-                          child: Text(val, style: GoogleFonts.dmSans(color: SocioTheme.slateText)),
-                        ))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) selectedStage = val;
-                },
-                decoration: const InputDecoration(labelText: 'Startup Stage'),
-              ),
-            ],
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  style: GoogleFonts.dmSans(color: SocioTheme.slateText),
+                  decoration: const InputDecoration(labelText: 'Startup Name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: ideaController,
+                  maxLines: 2,
+                  style: GoogleFonts.dmSans(color: SocioTheme.slateText),
+                  decoration: const InputDecoration(labelText: 'Startup Description (Idea)'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: userController,
+                  keyboardType: TextInputType.number,
+                  style: GoogleFonts.dmSans(color: SocioTheme.slateText),
+                  decoration: const InputDecoration(labelText: 'Total Active Users'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: mrrController,
+                  keyboardType: TextInputType.number,
+                  style: GoogleFonts.dmSans(color: SocioTheme.slateText),
+                  decoration: const InputDecoration(labelText: 'Monthly Recurring Revenue (Rs.)'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: ['Idea stage', 'Building MVP', 'Pre-launch', 'Live & growing', 'Raising funds'].contains(selectedStage) 
+                      ? selectedStage 
+                      : 'Idea stage',
+                  dropdownColor: SocioTheme.creamBg,
+                  style: GoogleFonts.dmSans(color: SocioTheme.slateText),
+                  items: ['Idea stage', 'Building MVP', 'Pre-launch', 'Live & growing', 'Raising funds']
+                      .map((val) => DropdownMenuItem(
+                            value: val,
+                            child: Text(val, style: GoogleFonts.dmSans(color: SocioTheme.slateText)),
+                          ))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) selectedStage = val;
+                  },
+                  decoration: const InputDecoration(labelText: 'Startup Stage'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: customPersonaController,
+                  maxLines: 3,
+                  style: GoogleFonts.dmSans(color: SocioTheme.slateText),
+                  decoration: const InputDecoration(
+                    labelText: 'Custom Co-Founder Persona',
+                    hintText: 'e.g. Ex-Stripe CTO, direct, extremely technical...',
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -90,20 +119,26 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  userCount = int.tryParse(userController.text) ?? userCount;
-                  mrr = int.tryParse(mrrController.text) ?? mrr;
-                  stage = selectedStage;
-                });
-                Navigator.pop(context);
-                HapticFeedback.lightImpact();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Metrics updated! Socio AI is calibrating... 📊'),
-                    backgroundColor: SocioTheme.forestGreen,
-                  ),
+              onPressed: () async {
+                final updated = startup.copyWith(
+                  name: nameController.text.trim(),
+                  idea: ideaController.text.trim(),
+                  userCount: userController.text.trim().isEmpty ? '0' : userController.text.trim(),
+                  mrr: mrrController.text.trim().isEmpty ? '0' : mrrController.text.trim(),
+                  stage: selectedStage,
+                  customPersona: customPersonaController.text.trim(),
                 );
+                await ref.read(startupNotifierProvider.notifier).save(updated);
+                if (mounted) {
+                  Navigator.pop(context);
+                  HapticFeedback.lightImpact();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Profile and Custom Persona updated!'),
+                      backgroundColor: SocioTheme.forestGreen,
+                    ),
+                  );
+                }
               },
               child: const Text('Update'),
             ),
@@ -115,6 +150,9 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final startupAsync = ref.watch(startupNotifierProvider);
+    final startup = startupAsync.value ?? StartupModel.empty();
+
     return Scaffold(
       backgroundColor: SocioTheme.creamBg,
       appBar: AppBar(
@@ -145,10 +183,10 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
                   ),
                 ),
                 TextButton.icon(
-                  onPressed: _showMetricsEditDialog,
+                  onPressed: () => _showMetricsEditDialog(startup),
                   icon: const Icon(Icons.edit_rounded, size: 14, color: SocioTheme.forestGreen),
                   label: Text(
-                    'Edit Metrics',
+                    'Edit Profile',
                     style: GoogleFonts.dmSans(
                       color: SocioTheme.forestGreen,
                       fontWeight: FontWeight.bold,
@@ -165,21 +203,25 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
               children: [
                 _buildMetricCard(
                   'Total Users',
-                  userCount.toString(),
+                  startup.userCount,
                   Icons.people_outline_rounded,
                   SocioTheme.forestGreen,
                 ),
                 const SizedBox(width: 12),
                 _buildMetricCard(
                   'MRR',
-                  'Rs.$mrr',
+                  'Rs.${startup.mrr}',
                   Icons.payments_outlined,
                   SocioTheme.violet,
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            _buildStageCard(),
+            _buildStageCard(startup.stage),
+            
+            const SizedBox(height: 24),
+            // Competitor Radar Card
+            _buildRadarCard(),
             
             const SizedBox(height: 24),
             // Tasks Title
@@ -275,7 +317,7 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
     );
   }
 
-  Widget _buildStageCard() {
+  Widget _buildStageCard(String currentStage) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -304,7 +346,7 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
                 ),
               ),
               Text(
-                stage,
+                currentStage,
                 style: GoogleFonts.outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -335,7 +377,81 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
     );
   }
 
+  Widget _buildRadarCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: socioCardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: SocioTheme.forestGreen.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.radar_rounded, color: SocioTheme.forestGreen, size: 20),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Competitor Radar',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: SocioTheme.slateText,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Scan real-time market intelligence',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: SocioTheme.mutedText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Keep an eye on who is building in your space. Socio researches the latest updates and products using Tavily search API.',
+            style: GoogleFonts.dmSans(
+              fontSize: 13,
+              color: SocioTheme.slateText.withOpacity(0.85),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CompetitorRadarScreen()),
+                );
+              },
+              icon: const Icon(Icons.radar_rounded, size: 16),
+              label: const Text('Open Competitor Radar'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildStandupCard() {
+    final founderName = ref.watch(founderNameProvider);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: socioCardDecoration(),
@@ -350,7 +466,7 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
                   color: const Color(0xFFFEF3C7),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text('🔔', style: TextStyle(fontSize: 18)),
+                child: const Icon(Icons.notifications_active_outlined, color: Color(0xFFD97706), size: 20),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -387,7 +503,7 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
               border: Border.all(color: SocioTheme.creamBorder.withOpacity(0.5)),
             ),
             child: Text(
-              '"Deepak, what is the single blocker keeping you from onboarding 5 new clients today?"',
+              '"$founderName, what is the single blocker keeping you from onboarding 5 new clients today?"',
               style: GoogleFonts.dmSans(
                 fontSize: 13, 
                 color: SocioTheme.slateText.withOpacity(0.85), 
@@ -405,7 +521,7 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
                 HapticFeedback.mediumImpact();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Routing to Chat to answer standup... ⚡'),
+                    content: Text('Routing to Chat to answer standup...'),
                     backgroundColor: SocioTheme.forestGreen,
                   ),
                 );

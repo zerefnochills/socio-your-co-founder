@@ -1,4 +1,4 @@
-package com.example.socio_app
+package com.doppelganger.socio
 
 import io.flutter.embedding.android.FlutterActivity
 

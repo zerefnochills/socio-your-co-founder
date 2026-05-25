@@ -31,7 +31,7 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
     HapticFeedback.mediumImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Daily standup check-in completed! Feel: $_selectedEmotion ($_selectedScore/5) 🧠'),
+        content: Text('Daily standup check-in completed! Feel: $_selectedEmotion ($_selectedScore/5)'),
         backgroundColor: SocioTheme.forestGreen,
       ),
     );
@@ -69,7 +69,7 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('SOS dynamic session loaded. Go to Chat tab! ⚡'),
+                    content: Text('SOS dynamic session loaded. Go to Chat tab!'),
                     backgroundColor: SocioTheme.rose,
                   ),
                 );

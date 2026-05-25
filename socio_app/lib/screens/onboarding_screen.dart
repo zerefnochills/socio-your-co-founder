@@ -36,11 +36,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   // ── Stage options ────────────────────────────────────────────────────────────
   final List<_StageOption> _stages = [
-    _StageOption(label: 'Just an idea', emoji: '💡', value: 'Idea stage'),
-    _StageOption(label: 'Building MVP', emoji: '🔨', value: 'Building MVP'),
-    _StageOption(label: 'Pre-launch', emoji: '🚀', value: 'Pre-launch'),
-    _StageOption(label: 'Live & growing', emoji: '📈', value: 'Live & growing'),
-    _StageOption(label: 'Raising funds', emoji: '💰', value: 'Raising funds'),
+    _StageOption(label: 'Just an idea', emoji: '', value: 'Idea stage'),
+    _StageOption(label: 'Building MVP', emoji: '', value: 'Building MVP'),
+    _StageOption(label: 'Pre-launch', emoji: '', value: 'Pre-launch'),
+    _StageOption(label: 'Live & growing', emoji: '', value: 'Live & growing'),
+    _StageOption(label: 'Raising funds', emoji: '', value: 'Raising funds'),
   ];
 
   @override
@@ -133,6 +133,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         stage: _selectedStage,
         mrr: '0',
         userCount: '0',
+        customPersona: '',
         updatedAt: DateTime.now(),
       );
 
@@ -144,7 +145,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '✅ Welcome to Socio, ${_nameController.text.trim()}!',
+              'Welcome to Socio, ${_nameController.text.trim()}!',
               style: GoogleFonts.dmSans(color: Colors.white),
             ),
             backgroundColor: SocioTheme.forestGreen,
@@ -165,7 +166,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '❌ Error: $e',
+              'Error: $e',
               style: GoogleFonts.dmSans(color: Colors.white),
             ),
             backgroundColor: SocioTheme.rose,
@@ -318,7 +319,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
-            _buildHintChip('💡 Don\'t have a name yet? Just write your first name + idea'),
+            _buildHintChip('Don\'t have a name yet? Just write your first name + idea'),
           ],
         ),
       ),
@@ -367,7 +368,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 16),
-            _buildHintChip('✏️ Think: "We help [who] do [what] so they can [outcome]"'),
+            _buildHintChip('Think: "We help [who] do [what] so they can [outcome]"'),
           ],
         ),
       ),
@@ -551,8 +552,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         ),
         child: Row(
           children: [
-            Text(stage.emoji, style: const TextStyle(fontSize: 22)),
-            const SizedBox(width: 14),
             Text(
               stage.label,
               style: GoogleFonts.dmSans(
@@ -651,7 +650,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           if (!isLastStep) ...[
             const SizedBox(height: 14),
             Text(
-              'Takes about 30 seconds ✦',
+              'Takes about 30 seconds',
               style: GoogleFonts.dmSans(
                 fontSize: 13,
                 color: SocioTheme.mutedText.withOpacity(0.7),
