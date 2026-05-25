@@ -9,6 +9,7 @@ import 'screens/sign_in_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'navigation/main_navigation.dart';
 import 'app_theme.dart';
+import 'services/standup_service.dart';
 
 // Handle background FCM messages
 @pragma('vm:entry-point')
@@ -25,6 +26,15 @@ void main() async {
 
   // FCM background handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Initialize Daily Standup push notifications
+  try {
+    final standupService = StandupService();
+    await standupService.init();
+    await standupService.scheduleDailyStandup();
+  } catch (e) {
+    debugPrint("Failed to initialize StandupService: $e");
+  }
 
   runApp(
     const ProviderScope(

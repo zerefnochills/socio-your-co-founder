@@ -225,6 +225,8 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
                 },
               ),
             ),
+            const SizedBox(height: 24),
+            _buildStandupCard(),
             const SizedBox(height: 80), // bottom safe padding for floating navbar
           ],
         ),
@@ -332,4 +334,88 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
       ),
     );
   }
+
+  Widget _buildStandupCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: socioCardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('🔔', style: TextStyle(fontSize: 18)),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Daily Standup Prompt',
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: SocioTheme.slateText,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Every morning at 9:00 AM',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        color: SocioTheme.mutedText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: SocioTheme.creamBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: SocioTheme.creamBorder.withOpacity(0.5)),
+            ),
+            child: Text(
+              '"Deepak, what is the single blocker keeping you from onboarding 5 new clients today?"',
+              style: GoogleFonts.dmSans(
+                fontSize: 13, 
+                color: SocioTheme.slateText.withOpacity(0.85), 
+                fontStyle: FontStyle.italic,
+                height: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Routing to Chat to answer standup... ⚡'),
+                    backgroundColor: SocioTheme.forestGreen,
+                  ),
+                );
+              },
+              child: const Text('Reply to Standup'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

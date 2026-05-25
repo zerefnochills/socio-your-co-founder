@@ -38,6 +38,7 @@ dependencies:
   # UI
   google_fonts: ^6.2.1
   flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
 
   # Utils
   uuid: ^4.4.2
