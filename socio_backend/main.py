@@ -126,7 +126,7 @@ def build_socio_system_prompt(
             f"Founder intent: {persona_weights.get('intent', 'general')}\n"
         )
 
-    template = load_prompt("jordan_system_prompt.txt")
+    template = load_prompt("socio_system_prompt.txt")
 
     return template.format(
         startup_name=context.startup_name,

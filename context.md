@@ -41,7 +41,7 @@ Early version: three separate persona modes (Skeptic, Hustler, Strategist) that 
 1. Every message the founder sends goes to FastAPI
 2. A fast Groq call (under 200ms) classifies emotional tone + intent
 3. Returns persona weights (e.g. 60% Skeptic, 30% Hustler, 10% Strategist)
-4. These weights are injected into the Jordan/Socio unified system prompt
+4. These weights are injected into the Socio unified system prompt
 5. Gemini responds with the blended personality
 6. The founder never sees any of this — they just feel the right energy
 
@@ -128,7 +128,7 @@ The hackathon rule doesn't require a paid stack. The free tier strategy:
 - Firebase ecosystem — Auth + FCM + Storage all in one
 - Flutter has excellent Firebase packages
 - Free Spark plan is more than enough for hackathon + first 500 users
-- The startup context needs to sync so Jordan always has it regardless of device
+- The startup context needs to sync so Socio always has it regardless of device
 
 ---
 

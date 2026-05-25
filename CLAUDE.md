@@ -54,7 +54,7 @@ socio_app/                  ← Flutter frontend (Android + iOS)
     widgets/
       chat_bubble.dart
       investor_card.dart
-      jordan_insight_card.dart
+      socio_insight_card.dart
       mood_chart.dart
     navigation/
       main_navigation.dart
@@ -63,7 +63,7 @@ socio_app/                  ← Flutter frontend (Android + iOS)
 
 socio_backend/              ← FastAPI backend (Python)
   main.py                   ← All endpoints
-  jordan_system_prompt.txt  ← Socio AI persona prompt
+  socio_system_prompt.txt  ← Socio AI persona prompt
   mood_classifier_prompt.txt
   cold_email_prompt.txt
   investor_followup_prompt.txt
@@ -180,7 +180,7 @@ Returns backend status. Use this to confirm deployment is live.
 
 All prompts are stored as .txt files in `socio_backend/`. These are the file names:
 
-- `jordan_system_prompt.txt` — Main Socio AI persona with adaptive blending
+- `socio_system_prompt.txt` — Main Socio AI persona with adaptive blending
 - `mood_classifier_prompt.txt` — Fast Groq call to classify emotion + persona weights
 - `cold_email_prompt.txt` — Generates email + call script + follow-up sequence
 - `investor_followup_prompt.txt` — Personalised investor follow-up message
@@ -203,7 +203,7 @@ TAVILY_API_KEY=
 ## 📱 Screens & Navigation
 
 Bottom navigation bar with 5 tabs:
-1. **Jordan** (chat icon) → chat_screen.dart
+1. **Socio** (chat icon) → chat_screen.dart
 2. **Tracker** (calendar icon) → tracker_screen.dart
 3. **Outreach** (mail icon) → outreach_screen.dart
 4. **Pipeline** (chart icon) → pipeline_screen.dart
