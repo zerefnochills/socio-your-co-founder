@@ -139,6 +139,134 @@ class _PipelineScreenState extends ConsumerState<PipelineScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Auto Pipeline Setup Banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AutoPipelineBanner extends ConsumerWidget {
+  const _AutoPipelineBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(autoPipelineProvider);
+    return state.when(
+      loading: () => _BannerLoading(),
+      error: (e, _) => _BannerError(message: e.toString()),
+      data: (s) {
+        if (s.completed) return _BannerSuccess(savedCount: s.savedCount);
+        if (s.isRunning)  return _BannerLoading();
+        return _BannerCTA(
+          onTap: () => ref.read(autoPipelineProvider.notifier).runAutoSetup(),
+        );
+      },
+    );
+  }
+}
+
+class _BannerCTA extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BannerCTA({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: SocioTheme.forestGreen.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SocioTheme.forestGreen.withOpacity(0.25)),
+      ),
+      child: Row(children: [
+        Icon(Icons.auto_awesome_rounded, size: 18, color: _purple),
+        const SizedBox(width: 10),
+        Expanded(child: Text('Auto-discover investors for your startup',
+            style: GoogleFonts.dmSans(fontSize: 13, color: _text, fontWeight: FontWeight.w500))),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: _purple, borderRadius: BorderRadius.circular(99)),
+            child: Text('Auto-Setup',
+                style: GoogleFonts.dmSans(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _BannerLoading extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: SocioTheme.forestGreen.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SocioTheme.forestGreen.withOpacity(0.25)),
+      ),
+      child: Row(children: [
+        SizedBox(width: 16, height: 16,
+            child: CircularProgressIndicator(color: _purple, strokeWidth: 2)),
+        const SizedBox(width: 10),
+        Text('Finding investors via AI research…',
+            style: GoogleFonts.dmSans(fontSize: 13, color: _textMuted)),
+      ]),
+    );
+  }
+}
+
+class _BannerSuccess extends StatelessWidget {
+  final int savedCount;
+  const _BannerSuccess({required this.savedCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: SocioTheme.emeraldAccent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SocioTheme.emeraldAccent.withOpacity(0.3)),
+      ),
+      child: Row(children: [
+        Icon(Icons.check_circle_rounded, size: 18, color: _success),
+        const SizedBox(width: 8),
+        Text('$savedCount investors added to pipeline automatically',
+            style: GoogleFonts.dmSans(fontSize: 13, color: _success, fontWeight: FontWeight.w500)),
+      ]),
+    );
+  }
+}
+
+class _BannerError extends StatelessWidget {
+  final String message;
+  const _BannerError({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: SocioTheme.rose.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SocioTheme.rose.withOpacity(0.25)),
+      ),
+      child: Row(children: [
+        Icon(Icons.error_outline_rounded, size: 18, color: _error),
+        const SizedBox(width: 8),
+        Expanded(child: Text(
+            'Auto-setup failed: ${message.length > 60 ? '${message.substring(0, 60)}…' : message}',
+            style: GoogleFonts.dmSans(fontSize: 12, color: _error))),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Header
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1567,177 +1695,6 @@ class _FormField extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Auto Pipeline Setup Banner
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _AutoPipelineBanner extends ConsumerWidget {
-  const _AutoPipelineBanner();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final autoStateAsync = ref.watch(autoPipelineProvider);
-
-    return autoStateAsync.when(
-      loading: () => _buildBanner(
-        context,
-        child: Row(
-          children: [
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: SocioTheme.forestGreen),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Socio AI is researching investors & auto-populating pipeline...',
-                style: GoogleFonts.dmSans(fontSize: 13, color: SocioTheme.forestGreen, fontWeight: FontWeight.w500),
-              ),
-            ),
-          ],
-        ),
-      ),
-      error: (e, _) => _buildBanner(
-        context,
-        color: const Color(0xFFFEE2E2),
-        borderColor: const Color(0xFFFCA5A5),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline_rounded, color: SocioTheme.rose, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Pipeline setup failed: $e',
-                style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF991B1B), fontWeight: FontWeight.w500),
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.refresh_rounded, size: 18, color: SocioTheme.rose),
-              onPressed: () => ref.read(autoPipelineProvider.notifier).runAutoSetup(),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-          ],
-        ),
-      ),
-      data: (state) {
-        if (state.completed) {
-          return _buildBanner(
-            context,
-            color: const Color(0xFFD1FAE5),
-            borderColor: const Color(0xFF6EE7B7),
-            child: Row(
-              children: [
-                const Icon(Icons.check_circle_rounded, color: SocioTheme.emeraldAccent, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Setup complete! Added ${state.savedCount} VCs to your pipeline.',
-                    style: GoogleFonts.dmSans(fontSize: 13, color: const Color(0xFF065F46), fontWeight: FontWeight.w500),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    ref.invalidate(pipelineProvider);
-                    ref.invalidate(autoPipelineProvider);
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF065F46),
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                  ),
-                  child: Text('Done', style: GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (state.isRunning) {
-          return _buildBanner(
-            context,
-            child: Row(
-              children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: SocioTheme.forestGreen),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Searching VCs, analyzing match fit & building pipeline...',
-                    style: GoogleFonts.dmSans(fontSize: 13, color: SocioTheme.forestGreen, fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        final pipelineCount = ref.watch(pipelineProvider).value?.length ?? 0;
-        if (pipelineCount > 0) {
-          return const SizedBox.shrink();
-        }
-
-        return _buildBanner(
-          context,
-          child: Row(
-            children: [
-              const Icon(Icons.auto_awesome_rounded, color: SocioTheme.forestGreen, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Auto-setup fundraising funnel with matched VCs?',
-                  style: GoogleFonts.dmSans(
-                    fontSize: 13,
-                    color: const Color(0xFF0B3A22),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => ref.read(autoPipelineProvider.notifier).runAutoSetup(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: SocioTheme.forestGreen,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  minimumSize: Size.zero,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: Text(
-                  'Auto-Setup',
-                  style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBanner(
-    BuildContext context, {
-    required Widget child,
-    Color? color,
-    Color? borderColor,
-  }) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: color ?? SocioTheme.forestGreen.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor ?? SocioTheme.forestGreen.withOpacity(0.2)),
-      ),
-      child: child,
     );
   }
 }
