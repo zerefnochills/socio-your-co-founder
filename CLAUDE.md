@@ -97,6 +97,9 @@ socio_ai/
     ├── Procfile                  ← web: uvicorn main:app --host 0.0.0.0 --port $PORT
     ├── .env                      ← GEMINI_API_KEY, GROQ_API_KEY, TAVILY_API_KEY (NEVER COMMIT)
     ├── test_endpoints.py         ← Automated integration test suite for automated features [NEW]
+    ├── tests/                    ← Pytest test suite for backend [NEW]
+    │   ├── conftest.py           ← Configures TestClient + overrides environment variables to enable MOCK_MODE
+    │   └── test_endpoints_pytest.py ← Comprehensive, hermetic test suite for all 10 endpoints
     └── prompts/
         ├── socio_system_prompt.txt
         ├── mood_classifier_prompt.txt
@@ -359,6 +362,10 @@ bool get isMockMode => currentUser is MockUser;
 2. **Frontend api_config.dart:** Created global centralized Local / Production backend URL config.
 3. **Frontend lead_service.dart:** Added unified service methods `generateFollowUp` and `fetchCompetitors` bound to `ApiConfig.baseUrl`.
 4. **Frontend Screens:** Refactored `pipeline_screen.dart` and `competitor_radar_screen.dart` to request operations via Riverpod `leadServiceProvider` with exact brace-counting, resolving all early class-closure and undefined compiler errors.
+
+### Fix 9 — Undefined leadServiceProvider in mood_provider.dart (May 26, 2026)
+**Problem:** Building the Flutter application failed with `Error: Undefined name 'leadServiceProvider'` in `mood_provider.dart` because it did not import `outreach_provider.dart`.
+**Fix:** Added `import 'outreach_provider.dart';` to `lib/providers/mood_provider.dart` to correctly resolve the Riverpod provider name.
 
 ---
 
