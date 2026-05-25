@@ -124,6 +124,7 @@ class InvestorModel {
   }
 
   InvestorModel copyWith({
+    String? id,
     String? name,
     String? firm,
     String? role,
@@ -139,9 +140,10 @@ class InvestorModel {
     List<String>? followUpsSent,
     int? warmthScore,
     bool? hasFollowUpScheduled,
+    DateTime? createdAt,
   }) {
     return InvestorModel(
-      id: id,
+      id: id ?? this.id,
       name: name ?? this.name,
       firm: firm ?? this.firm,
       role: role ?? this.role,
@@ -157,7 +159,7 @@ class InvestorModel {
       followUpsSent: followUpsSent ?? this.followUpsSent,
       warmthScore: warmthScore ?? this.warmthScore,
       hasFollowUpScheduled: hasFollowUpScheduled ?? this.hasFollowUpScheduled,
-      createdAt: createdAt,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 

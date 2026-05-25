@@ -44,6 +44,9 @@ class AuthService {
   // Current user (nullable)
   User? get currentUser => _mockUser ?? _auth.currentUser;
 
+  // Whether the app is in mock mode (using a local mock user instead of Firebase)
+  bool get isMockMode => currentUser is MockUser;
+
   // ── Google Sign-In ────────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
     try {
