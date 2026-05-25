@@ -41,6 +41,18 @@ class SignInNotifier extends AsyncNotifier<void> {
     }
   }
 
+  Future<bool> signInAnonymously() async {
+    state = const AsyncLoading();
+    try {
+      final result = await ref.read(authServiceProvider).signInAnonymously();
+      state = const AsyncData(null);
+      return result != null;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return false;
+    }
+  }
+
   Future<void> signOut() async {
     state = const AsyncLoading();
     try {

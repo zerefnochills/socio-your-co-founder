@@ -44,6 +44,19 @@ class AuthService {
     }
   }
 
+  // ── Anonymous Sign-In (For Testing/Bypass) ─────────────────────
+  Future<UserCredential?> signInAnonymously() async {
+    try {
+      final userCredential = await _auth.signInAnonymously();
+      await _createUserDocIfNeeded(userCredential.user!);
+      return userCredential;
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthError(e);
+    } catch (e) {
+      throw Exception('Anonymous sign-in failed. Please ensure Anonymous Auth is enabled in Firebase Console.');
+    }
+  }
+
   // ── Create user document in Firestore on first sign-in ───────
   Future<void> _createUserDocIfNeeded(User user) async {
     final userRef = _db.collection('users').doc(user.uid);
