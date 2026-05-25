@@ -227,3 +227,72 @@ final investorDiscoveryProvider = AsyncNotifierProvider.autoDispose<
     InvestorDiscoveryNotifier, InvestorDiscoveryState>(
   InvestorDiscoveryNotifier.new,
 );
+// ── Automated Investor Pipeline Setup ────────────────────────────────────────
+
+class AutoPipelineState {
+  final bool isRunning;
+  final int savedCount;
+  final String? errorMessage;
+  final bool completed;
+
+  const AutoPipelineState({
+    this.isRunning = false,
+    this.savedCount = 0,
+    this.errorMessage,
+    this.completed = false,
+  });
+
+  AutoPipelineState copyWith({
+    bool? isRunning,
+    int? savedCount,
+    String? errorMessage,
+    bool? completed,
+  }) =>
+      AutoPipelineState(
+        isRunning:    isRunning    ?? this.isRunning,
+        savedCount:   savedCount   ?? this.savedCount,
+        errorMessage: errorMessage,
+        completed:    completed    ?? this.completed,
+      );
+}
+
+class AutoPipelineNotifier extends AutoDisposeAsyncNotifier<AutoPipelineState> {
+  @override
+  Future<AutoPipelineState> build() async => const AutoPipelineState();
+
+  Future<void> runAutoSetup({String geography = 'India', int topN = 5}) async {
+    final service = ref.read(leadServiceProvider);
+    final user    = ref.read(authStateProvider).value;
+    final startup = ref.read(startupNotifierProvider).value;
+    if (user == null || startup == null) return;
+
+    state = const AsyncValue.loading();
+
+    try {
+      state = AsyncValue.data(const AutoPipelineState(isRunning: true));
+      final rawInvestors = await service.autoSetupInvestorPipeline(
+        startup: startup,
+        geography: geography,
+        topN: topN,
+      );
+
+      final saved = await service.saveAutoInvestorsToPipeline(
+        rawInvestors: rawInvestors,
+        uid: user.uid,
+        startupId: startup.id,
+      );
+
+      state = AsyncValue.data(AutoPipelineState(
+        savedCount: saved.length,
+        completed: true,
+      ));
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+}
+
+final autoPipelineProvider = AsyncNotifierProvider.autoDispose<
+    AutoPipelineNotifier, AutoPipelineState>(
+  AutoPipelineNotifier.new,
+);

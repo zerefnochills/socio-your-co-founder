@@ -297,4 +297,188 @@ class LeadService {
     });
     return response.data['competitors'] ?? [];
   }
-}
+
+// ── AUTO PIPELINE SETUP ───────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> autoSetupInvestorPipeline({
+    required StartupModel startup,
+    String geography = 'India',
+    int topN = 5,
+  }) async {
+    final response = await _dio.post('/auto-setup-investor-pipeline', data: {
+      'startup_name':  startup.name,
+      'startup_idea':  startup.idea,
+      'startup_stage': startup.stage,
+      'mrr':           startup.mrr,
+      'user_count':    startup.userCount,
+      'geography':     geography,
+      'top_n':         topN,
+    });
+    final List<dynamic> raw = response.data['pipeline_investors'] ?? [];
+    return raw.cast<Map<String, dynamic>>();
+  }
+
+  Future<InvestorModel> saveDiscoveredInvestorToPipeline({
+    required DiscoveredInvestor discovered,
+    required String uid,
+    required String startupId,
+  }) async {
+    final warmthScore = discovered.warmth == 'warm' ? 4
+        : discovered.warmth == 'lukewarm' ? 3 : 2;
+
+    final investor = InvestorModel(
+      id: '',
+      name: discovered.investorName,
+      firm: discovered.firm,
+      role: '',
+      email: '',
+      checkSize: '',
+      stage: discovered.stage,
+      sector: discovered.sectorFocus,
+      notes: [
+        if (discovered.fitReason.isNotEmpty) 'Fit: ${discovered.fitReason}',
+        if (discovered.recentSignal.isNotEmpty) 'Signal: ${discovered.recentSignal}',
+        if (discovered.contactApproach.isNotEmpty) 'Approach: ${discovered.contactApproach}',
+        if ((discovered.bestHook ?? '').isNotEmpty) 'Hook: ${discovered.bestHook}',
+      ].join('\n'),
+      status: InvestorStatus.identified,
+      warmthScore: warmthScore,
+      createdAt: DateTime.now(),
+    );
+
+    final col = _db
+        .collection('users').doc(uid)
+        .collection('startups').doc(startupId)
+        .collection('investors');
+
+    final doc = await col.add(investor.toFirestore());
+    return investor.copyWith(id: doc.id);
+  }
+
+  Future<List<InvestorModel>> saveAutoInvestorsToPipeline({
+    required List<Map<String, dynamic>> rawInvestors,
+    required String uid,
+    required String startupId,
+  }) async {
+    final col = _db
+        .collection('users').doc(uid)
+        .collection('startups').doc(startupId)
+        .collection('investors');
+
+    final existing = await col.get();
+    final existingNames = existing.docs
+        .map((d) => (d.data()['name'] as String? ?? '').toLowerCase())
+        .toSet();
+
+    final saved = <InvestorModel>[];
+    for (final raw in rawInvestors) {
+      final name = (raw['investor_name'] as String? ?? '').trim();
+      if (name.isEmpty || existingNames.contains(name.toLowerCase())) continue;
+
+      final warmthRaw   = (raw['warmth'] as String? ?? 'cold').toLowerCase();
+      final warmthScore = warmthRaw == 'warm' ? 4 : warmthRaw == 'lukewarm' ? 3 : 2;
+
+      final investor = InvestorModel(
+        id: '',
+        name: name,
+        firm: raw['firm'] as String? ?? '',
+        role: '',
+        email: '',
+        checkSize: '',
+        stage: raw['stage'] as String? ?? '',
+        sector: raw['sector_focus'] as String? ?? '',
+        notes: [
+          if ((raw['fit_reason'] as String? ?? '').isNotEmpty)
+            'Fit: ${raw['fit_reason']}',
+          if ((raw['recent_signal'] as String? ?? '').isNotEmpty)
+            'Signal: ${raw['recent_signal']}',
+          if ((raw['contact_approach'] as String? ?? '').isNotEmpty)
+            'Approach: ${raw['contact_approach']}',
+          if ((raw['enrichment_summary'] as String? ?? '').isNotEmpty)
+            'Intel: ${(raw['enrichment_summary'] as String).substring(0, ((raw['enrichment_summary'] as String).length).clamp(0, 200))}',
+        ].join('\n'),
+        status: InvestorStatus.identified,
+        warmthScore: warmthScore,
+        createdAt: DateTime.now(),
+      );
+
+      final doc = await col.add(investor.toFirestore());
+      saved.add(investor.copyWith(id: doc.id));
+      existingNames.add(name.toLowerCase());
+    }
+    return saved;
+  }
+
+  // ── MOOD LOGS ─────────────────────────────────────────────────────────────
+
+  Future<void> saveMoodCheckIn({
+    required String uid,
+    required String startupId,
+    required int score,
+    required String emotion,
+    String? note,
+  }) async {
+    await _db
+        .collection('users').doc(uid)
+        .collection('startups').doc(startupId)
+        .collection('mood_logs')
+        .add({
+          'score':     score,
+          'emotion':   emotion,
+          'note':      note ?? '',
+          'source':    'manual_checkin',
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+  }
+
+  Future<List<Map<String, dynamic>>> fetchMoodLogs({
+    required String uid,
+    required String startupId,
+    int days = 7,
+  }) async {
+    final since = DateTime.now().subtract(Duration(days: days));
+    final snap = await _db
+        .collection('users').doc(uid)
+        .collection('startups').doc(startupId)
+        .collection('mood_logs')
+        .where('timestamp', isGreaterThan: Timestamp.fromDate(since))
+        .orderBy('timestamp', descending: false)
+        .get();
+
+    return snap.docs.map((d) {
+      final data = d.data();
+      return {
+        'score':     data['score'] ?? 3,
+        'emotion':   data['emotion'] ?? 'neutral',
+        'note':      data['note'] ?? '',
+        'source':    data['source'] ?? 'chat',
+        'timestamp': (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      };
+    }).toList();
+  }
+
+  Stream<List<Map<String, dynamic>>> watchMoodLogs({
+    required String uid,
+    required String startupId,
+    int days = 7,
+  }) {
+    final since = DateTime.now().subtract(Duration(days: days));
+    return _db
+        .collection('users').doc(uid)
+        .collection('startups').doc(startupId)
+        .collection('mood_logs')
+        .where('timestamp', isGreaterThan: Timestamp.fromDate(since))
+        .orderBy('timestamp', descending: false)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) {
+              final data = d.data();
+              return <String, dynamic>{
+                'score':     data['score'] ?? 3,
+                'emotion':   data['emotion'] ?? 'neutral',
+                'note':      data['note'] ?? '',
+                'source':    data['source'] ?? 'chat',
+                'timestamp': (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              };
+            }).toList());
+  }
+}  // <-- this closes the LeadService class
