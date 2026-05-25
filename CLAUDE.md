@@ -1,6 +1,6 @@
 # CLAUDE.md — Socio Project Master Guide
 > Primary developer manual for Socio. Update this file after every feature build.
-> Last updated: May 26, 2026 | Version: 4.0 | Status: Concurrency & Service Architecture Optimized ✅
+> Last updated: May 26, 2026 | Version: 4.1 | Status: Hermetic & Offline Testing Optimized ✅
 
 ---
 
@@ -364,6 +364,13 @@ bool get isMockMode => currentUser is MockUser;
 
 ## Running the Project
 
+### Running Backend Tests
+To run the automated, hermetic Pytest suite completely offline (no API keys required):
+```powershell
+cd socio_backend
+py -m pytest tests/test_endpoints_pytest.py -v
+```
+
 ### Backend (local)
 ```powershell
 cd socio_backend
@@ -442,3 +449,4 @@ flutter run
 | May 26, 2026 | Firebase Android setup — flutter create, package rename, google-services.json, Gradle plugins |
 | May 26, 2026 | FCM Daily Standup feature complete — standup_service rewrite, tabNotifier, test button, evening check-in, permission request at onboarding |
 | May 26, 2026 | Concurrency & Service Architecture Optimization — wrapped Tavily and LLM calls in asyncio.to_thread, gathered search queries concurrently, centralized API configuration via api_config.dart, refactored lead_service.dart, and resolved all screen compiler errors |
+| May 26, 2026 | Hermetic & Offline Testing Optimization — Added a first-class MOCK_MODE, created a comprehensive pytest suite covering all 10 endpoints (including leads, investors, radar, and SSE chat streaming), and updated requirements.txt |

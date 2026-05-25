@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/lead_service.dart';
 import 'auth_provider.dart';
 import 'startup_provider.dart';
+import 'outreach_provider.dart';
 
 // ── Real-time mood log stream (last 7 days) ──────────────────────────────────
 
