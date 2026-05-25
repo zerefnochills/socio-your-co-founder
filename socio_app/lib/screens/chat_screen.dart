@@ -1,5 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../models/message_model.dart';
+import '../models/startup_model.dart';
+import '../providers/chat_provider.dart';
+import '../providers/startup_provider.dart';
+import '../services/chat_service.dart';
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ChatScreen — Socio AI Co-Founder
+// Features: SSE word-by-word streaming · mood indicator · STT voice input
+//           startup context injection · streaming cursor · error banner
+// ─────────────────────────────────────────────────────────────────────────────
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -8,395 +22,759 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen> {
-  final TextEditingController _messageController = TextEditingController();
+class _ChatScreenState extends ConsumerState<ChatScreen>
+    with TickerProviderStateMixin {
+  final TextEditingController _inputController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
-  // Dummy messages for UI mock
-  final List<MockMessage> _messages = [
-    MockMessage(
-      content: "Hey there! I'm Socio, your persistent AI co-founder. I read your communications and automatically adapt to help you build your startup. What are we brainstorming today?",
-      isSocio: true,
-      timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-    ),
-  ];
+  final FocusNode _focusNode = FocusNode();
 
-  // Mock weights for the Persona Engine
-  double skepticWeight = 0.33;
-  double hustlerWeight = 0.33;
-  double strategistWeight = 0.34;
+  late final AnimationController _micPulseController;
+  late final Animation<double> _micPulse;
+  late final AnimationController _cursorBlinkController;
+  late final Animation<double> _cursorBlink;
 
-  void _sendMessage() {
-    final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+  // ── Design tokens (matches Pi AI style) ───────────────────────
+  static const _purple = Color(0xFF0B3A22);
+  static const _purpleLight = Color(0xFFE5EFE9);
+  static const _purpleMid = Color(0xFF4F8F6F);
+  static const _background = Color(0xFFF7F4EB);
+  static const _bubbleSocio = Colors.transparent; // Frameless bubbles for Socio!
+  static const _textPrimary = Color(0xFF15291C);
+  static const _textSecondary = Color(0xFF5E7063);
+  static const _border = Color(0xFFEBE5D8);
+  static const _white = Color(0xFFFFFFFF);
 
-    setState(() {
-      _messages.add(MockMessage(
-        content: text,
-        isSocio: false,
-        timestamp: DateTime.now(),
-      ));
-      _messageController.clear();
-      
-      // Mock persona weights adjustment based on message content
-      if (text.toLowerCase().contains("pitch") || text.toLowerCase().contains("sell")) {
-        hustlerWeight = 0.70;
-        skepticWeight = 0.10;
-        strategistWeight = 0.20;
-      } else if (text.toLowerCase().contains("risk") || text.toLowerCase().contains("fail")) {
-        skepticWeight = 0.75;
-        hustlerWeight = 0.10;
-        strategistWeight = 0.15;
-      } else if (text.toLowerCase().contains("plan") || text.toLowerCase().contains("scale")) {
-        strategistWeight = 0.65;
-        skepticWeight = 0.15;
-        hustlerWeight = 0.20;
-      }
-    });
+  static const _error = Color(0xFFDC2626);
+  static const _success = Color(0xFF059669);
 
-    _scrollToBottom();
+  bool _hasText = false;
 
-    // Mock Socio response after a short delay
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
-      
-      String response = "That's an interesting point! Let's explore that further. If we look at this strategically, we should consider our core MRR and user traction.";
-      if (hustlerWeight > 0.5) {
-        response = "Let's push this live immediately! We can hack a quick landing page, start doing cold outreach to 100 targets, and get our first users by tomorrow. Speed is our superpower!";
-      } else if (skepticWeight > 0.5) {
-        response = "Wait, let's play devil's advocate. Is this really a burning problem for solo founders, or are they just telling you it's a 'nice-to-have'? How will you validate their willingness to pay before writing any code?";
-      } else if (strategistWeight > 0.5) {
-        response = "To scale this effectively, let's map out our long-term defensibility. We should focus on building a robust data flywheel and setting up a clear subscription tier (e.g., Pro at 1,599/mo).";
-      }
+  @override
+  void initState() {
+    super.initState();
 
-      setState(() {
-        _messages.add(MockMessage(
-          content: response,
-          isSocio: true,
-          timestamp: DateTime.now(),
-        ));
-      });
-      _scrollToBottom();
-    });
-  }
+    _micPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+    _micPulse = Tween<double>(begin: 1.0, end: 1.18).animate(
+      CurvedAnimation(parent: _micPulseController, curve: Curves.easeInOut),
+    );
+
+    _cursorBlinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 530),
+    )..repeat(reverse: true);
+
+    _cursorBlink = Tween<double>(begin: 0.0, end: 1.0).animate(
+      _cursorBlinkController,
+    );
+
+    _inputController.addListener(() {
+      final has = _inputController.text.trim().isNotEmpty;
+      if (has != _hasText) setState(() => _hasText = has);
     });
   }
 
   @override
+  void dispose() {
+    _inputController.dispose();
+    _scrollController.dispose();
+    _focusNode.dispose();
+    _micPulseController.dispose();
+    _cursorBlinkController.dispose();
+    super.dispose();
+  }
+
+  // ── Scroll to bottom ─────────────────────────────────────────────────────
+  void _scrollToBottom({bool animated = true}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      final target = _scrollController.position.maxScrollExtent;
+      if (animated) {
+        _scrollController.animateTo(
+          target,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _scrollController.jumpTo(target);
+      }
+    });
+  }
+
+  // ── Send ─────────────────────────────────────────────────────────────────
+  Future<void> _send() async {
+    final text = _inputController.text.trim();
+    if (text.isEmpty) return;
+    _inputController.clear();
+    _focusNode.unfocus();
+    HapticFeedback.lightImpact();
+    await ref.read(chatProvider.notifier).sendMessage(text);
+    _scrollToBottom();
+  }
+
+  // ── STT ──────────────────────────────────────────────────────────────────
+  Future<void> _toggleMic() async {
+    HapticFeedback.mediumImpact();
+    final result =
+        await ref.read(chatProvider.notifier).toggleListening();
+    if (result != null && result.isNotEmpty) {
+      _inputController.text = result;
+      _inputController.selection = TextSelection.fromPosition(
+        TextPosition(offset: result.length),
+      );
+    }
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F7FF),
-      body: Column(
-        children: [
-          // Premium Persona Widget Header
-          _buildPersonaHeader(),
+    final chatState = ref.watch(chatProvider);
+    final messages = chatState.messages;
+    final isStreaming = chatState.isStreaming;
+    final isListening = chatState.isListening;
+    final mood = chatState.latestMood;
+    final error = chatState.errorBanner;
 
-          // Chat Messages list
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[index];
-                return _buildChatBubble(message);
-              },
-            ),
+    // Load and listen to live startup context
+    ref.listen<AsyncValue<StartupModel>>(
+      startupNotifierProvider,
+      (_, nextState) {
+        final startup = nextState.value;
+        if (startup != null) {
+          ref.read(chatProvider.notifier).setStartupContext(startup);
+        }
+      },
+    );
+
+    // Seed the initial value if already loaded
+    final startup = ref.watch(startupNotifierProvider).value;
+    if (startup != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(chatProvider.notifier).setStartupContext(startup);
+      });
+    }
+
+
+    // Auto-scroll when new messages arrive
+    ref.listen<List<MessageModel>>(
+      messagesProvider,
+      (_, __) => _scrollToBottom(),
+    );
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: _white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildAppBar(mood),
+              if (error != null) _buildErrorBanner(error),
+              Expanded(
+                child: messages.isEmpty
+                    ? _buildEmptyState()
+                    : _buildMessageList(messages, isStreaming),
+              ),
+              _buildInputBar(isStreaming, isListening),
+            ],
           ),
-
-          // Message Input Field
-          _buildInputBar(),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildPersonaHeader() {
+  // ── App bar ───────────────────────────────────────────────────────────────
+  Widget _buildAppBar(MoodData? mood) {
     return Container(
-      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: _white,
+        border: Border(bottom: BorderSide(color: _border.withOpacity(0.6))),
       ),
-      padding: const EdgeInsets.only(top: 16, left: 20, right: 20, bottom: 20),
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Color(0xFF6D28D9),
-                  child: Icon(Icons.psychology_rounded, color: Colors.white, size: 24),
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF8B5CF6), _purple],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(13),
+              boxShadow: [
+                BoxShadow(
+                  color: _purple.withOpacity(0.28),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              ],
+            ),
+            child: Center(
+              child: Text(
+                'S',
+                style: GoogleFonts.fraunces(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: _white,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Socio',
+                  style: GoogleFonts.fraunces(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: _textPrimary,
+                  ),
+                ),
+                Row(
                   children: [
-                    const Text(
-                      'Socio AI',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: _success,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF059669),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        const Text(
-                          'Persona Engine: Adaptive',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 5),
+                    Text(
+                      'Your AI co-founder',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        color: _textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Dynamic Thinking Mix',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF64748B),
-                letterSpacing: 0.5,
+          ),
+          // Mood chip
+          if (mood != null)
+            AnimatedOpacity(
+              opacity: 1.0,
+              duration: const Duration(milliseconds: 300),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _moodColor(mood.score).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      _moodEmoji(mood.score),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      mood.emotion,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        color: _moodColor(mood.score),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            // Thinking Style Progress Bars
-            Row(
-              children: [
-                _buildPersonaPill('Hustler', hustlerWeight, const Color(0xFFD97706)),
-                const SizedBox(width: 8),
-                _buildPersonaPill('Skeptic', skepticWeight, const Color(0xFFDC2626)),
-                const SizedBox(width: 8),
-                _buildPersonaPill('Strategist', strategistWeight, const Color(0xFF6D28D9)),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildPersonaPill(String name, double weight, Color color) {
-    return Expanded(
+  // ── Error banner ──────────────────────────────────────────────────────────
+  Widget _buildErrorBanner(String error) {
+    return GestureDetector(
+      onTap: () => ref.read(chatProvider.notifier).clearError(),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        color: _error.withOpacity(0.1),
+        child: Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-                Text(
-                  '${(weight * 100).toInt()}%',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: weight,
-                backgroundColor: color.withOpacity(0.1),
-                valueColor: AlwaysStoppedAnimation<Color>(color),
-                minHeight: 4,
+            const Icon(Icons.error_outline_rounded, color: _error, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                error,
+                style: GoogleFonts.dmSans(
+                    fontSize: 13, color: _error, fontWeight: FontWeight.w500),
               ),
             ),
+            const Icon(Icons.close_rounded, color: _error, size: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildChatBubble(MockMessage message) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Row(
-        mainAxisAlignment:
-            message.isSocio ? MainAxisAlignment.start : MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (message.isSocio) ...[
-            const CircleAvatar(
-              radius: 16,
-              backgroundColor: Color(0xFFEDE9FE),
-              child: Text(
-                'S',
-                style: TextStyle(
-                  color: Color(0xFF6D28D9),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.all(16),
+  // ── Empty state ───────────────────────────────────────────────────────────
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
-                color: message.isSocio ? Colors.white : const Color(0xFF6D28D9),
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(message.isSocio ? 4 : 16),
-                  bottomRight: Radius.circular(message.isSocio ? 16 : 4),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF8B5CF6), _purple],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.01),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    color: _purple.withOpacity(0.3),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
                   ),
                 ],
               ),
-              child: Text(
-                message.content,
-                style: TextStyle(
-                  color: message.isSocio ? const Color(0xFF0F172A) : Colors.white,
-                  fontSize: 14,
-                  height: 1.4,
+              child: Center(
+                child: Text(
+                  'S',
+                  style: GoogleFonts.fraunces(
+                      fontSize: 32, fontWeight: FontWeight.w700, color: _white),
                 ),
               ),
             ),
-          ),
-          if (!message.isSocio) ...[
-            const SizedBox(width: 8),
-            const CircleAvatar(
-              radius: 16,
-              backgroundColor: Color(0xFFE2E8F0),
-              child: Icon(Icons.person_rounded, size: 16, color: Color(0xFF64748B)),
+            const SizedBox(height: 20),
+            Text(
+              'Loading your co-founder…',
+              style: GoogleFonts.fraunces(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: _textPrimary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Socio is reading your startup context.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.dmSans(
+                  fontSize: 14, color: _textSecondary, height: 1.5),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ── Message list ──────────────────────────────────────────────────────────
+  Widget _buildMessageList(List<MessageModel> messages, bool isStreaming) {
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      itemCount: messages.length,
+      itemBuilder: (context, i) {
+        final msg = messages[i];
+        final isFirst = i == 0 ||
+            messages[i - 1].role != msg.role;
+        final isLast = i == messages.length - 1 ||
+            messages[i + 1].role != msg.role;
+
+        return _buildBubble(
+          msg: msg,
+          showAvatar: msg.role == MessageRole.socio && isFirst,
+          showTimestamp: isLast,
+          isActiveStreaming:
+              isStreaming && i == messages.length - 1 && msg.role == MessageRole.socio,
+        );
+      },
+    );
+  }
+
+  Widget _buildBubble({
+    required MessageModel msg,
+    required bool showAvatar,
+    required bool showTimestamp,
+    required bool isActiveStreaming,
+  }) {
+    final isUser = msg.role == MessageRole.user;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        top: showAvatar ? 12 : 2,
+        bottom: showTimestamp ? 4 : 0,
+      ),
+      child: Row(
+        mainAxisAlignment:
+            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Socio avatar
+          if (!isUser)
+            Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 2),
+              child: showAvatar
+                  ? Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8B5CF6), _purple],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'S',
+                          style: GoogleFonts.fraunces(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: _white),
+                        ),
+                      ),
+                    )
+                  : const SizedBox(width: 30),
+            ),
+
+          // Bubble
+          Flexible(
+            child: Column(
+              crossAxisAlignment: isUser
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                if (!isUser && showAvatar)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 2, bottom: 4),
+                    child: Text(
+                      'Socio',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _textSecondary,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.72,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 11),
+                  decoration: BoxDecoration(
+                    color: isUser ? _purpleLight : _bubbleSocio,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(22),
+                      topRight: const Radius.circular(22),
+                      bottomLeft: Radius.circular(isUser ? 22 : 4),
+                      bottomRight: Radius.circular(isUser ? 4 : 22),
+                    ),
+                    boxShadow: isUser
+                        ? [
+                            BoxShadow(
+                              color: _purple.withOpacity(0.06),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: msg.isStreaming &&
+                          msg.content.isEmpty
+                      ? _buildTypingDots()
+                      : _buildBubbleText(msg, isUser, isActiveStreaming),
+                ),
+                if (showTimestamp)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, left: 2, right: 2),
+                    child: Text(
+                      _formatTime(msg.timestamp),
+                      style: GoogleFonts.dmSans(
+                          fontSize: 10, color: _textSecondary.withOpacity(0.6)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          // Spacer for user messages
+          if (isUser) const SizedBox(width: 38),
         ],
       ),
     );
   }
 
-  Widget _buildInputBar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-      ),
-      padding: const EdgeInsets.only(left: 16, right: 16, bottom: 24, top: 12),
-      child: Row(
-        children: [
-          // Audio STT Mock Icon
-          IconButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Speech-to-Text active (Simulation Mode) 🎙️'),
-                  backgroundColor: Color(0xFF6D28D9),
-                ),
-              );
-            },
-            icon: const Icon(Icons.mic_none_rounded, color: Color(0xFF64748B)),
-            style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFFF1F5F9),
-              padding: const EdgeInsets.all(12),
+  Widget _buildBubbleText(
+      MessageModel msg, bool isUser, bool isActiveStreaming) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Flexible(
+          child: Text(
+            msg.content,
+            style: GoogleFonts.dmSans(
+              fontSize: 15,
+              color: isUser ? _purple : _textPrimary,
+              height: 1.5,
+              fontWeight: FontWeight.w400,
             ),
           ),
-          const SizedBox(width: 8),
-          
-          // Text Input Field
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Ask Socio... (e.g. pitch, risk, scale)',
-                hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
-                filled: true,
-                fillColor: const Color(0xFFF1F5F9),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
+        ),
+
+        // Blinking cursor while streaming
+        if (isActiveStreaming && msg.content.isNotEmpty)
+          AnimatedBuilder(
+            animation: _cursorBlink,
+            builder: (_, __) => Opacity(
+              opacity: _cursorBlink.value,
+              child: Container(
+                width: 2,
+                height: 15,
+                margin: const EdgeInsets.only(left: 2, bottom: 1),
+                decoration: BoxDecoration(
+                  color: _purpleMid,
+                  borderRadius: BorderRadius.circular(1),
                 ),
               ),
-              onSubmitted: (_) => _sendMessage(),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTypingDots() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(
+        3,
+        (i) => _BouncingDot(
+          delay: Duration(milliseconds: i * 150),
+          color: _textSecondary,
+        ),
+      ),
+    );
+  }
+
+  // ── Input bar ─────────────────────────────────────────────────────────────
+  Widget _buildInputBar(bool isStreaming, bool isListening) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 16),
+      decoration: BoxDecoration(
+        color: _white,
+        border: Border(top: BorderSide(color: _border.withOpacity(0.6))),
+        boxShadow: [
+          BoxShadow(
+            color: _textPrimary.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Mic button
+          GestureDetector(
+            onTap: _toggleMic,
+            child: AnimatedBuilder(
+              animation: _micPulse,
+              builder: (_, child) => Transform.scale(
+                scale: isListening ? _micPulse.value : 1.0,
+                child: child,
+              ),
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: isListening
+                      ? _error.withOpacity(0.12)
+                      : _purpleLight,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  isListening ? Icons.stop_rounded : Icons.mic_rounded,
+                  color: isListening ? _error : _purple,
+                  size: 20,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 8),
 
-          // Send Button
-          IconButton(
-            onPressed: _sendMessage,
-            icon: const Icon(Icons.send_rounded, color: Colors.white),
-            style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFF6D28D9),
-              padding: const EdgeInsets.all(12),
+          // Text field
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: _background,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _border),
+              ),
+              child: TextField(
+                controller: _inputController,
+                focusNode: _focusNode,
+                maxLines: 5,
+                minLines: 1,
+                textInputAction: TextInputAction.newline,
+                style: GoogleFonts.dmSans(
+                    fontSize: 15, color: _textPrimary, height: 1.4),
+                decoration: InputDecoration(
+                  hintText: isListening
+                      ? 'Listening…'
+                      : 'Ask your co-founder anything…',
+                  hintStyle: GoogleFonts.dmSans(
+                    fontSize: 15,
+                    color: _textSecondary.withOpacity(0.6),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Send button
+          GestureDetector(
+            onTap: (!isStreaming && _hasText) ? _send : null,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: (!isStreaming && _hasText)
+                    ? const LinearGradient(
+                        colors: [Color(0xFF7C3AED), _purple],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                color: (!isStreaming && _hasText) ? null : _border,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: (!isStreaming && _hasText)
+                    ? [
+                        BoxShadow(
+                          color: _purple.withOpacity(0.35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: isStreaming
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Icon(
+                      Icons.arrow_upward_rounded,
+                      color: (!isStreaming && _hasText)
+                          ? _white
+                          : _textSecondary,
+                      size: 20,
+                    ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  Color _moodColor(double score) {
+    if (score >= 0.7) return _success;
+    if (score >= 0.4) return const Color(0xFFD97706);
+    return _error;
+  }
+
+  String _moodEmoji(double score) {
+    if (score >= 0.7) return '😊';
+    if (score >= 0.4) return '😐';
+    return '😔';
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
   }
 }
 
-class MockMessage {
-  final String content;
-  final bool isSocio;
-  final DateTime timestamp;
+// ── Bouncing dot widget (typing indicator) ────────────────────────────────────
+class _BouncingDot extends StatefulWidget {
+  final Duration delay;
+  final Color color;
 
-  MockMessage({
-    required this.content,
-    required this.isSocio,
-    required this.timestamp,
-  });
+  const _BouncingDot({required this.delay, required this.color});
+
+  @override
+  State<_BouncingDot> createState() => _BouncingDotState();
+}
+
+class _BouncingDotState extends State<_BouncingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _bounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _bounce = Tween<double>(begin: 0, end: -6).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    Future.delayed(widget.delay, () {
+      if (mounted) _controller.repeat(reverse: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _bounce,
+      builder: (_, __) => Transform.translate(
+        offset: Offset(0, _bounce.value),
+        child: Container(
+          width: 7,
+          height: 7,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            color: widget.color.withOpacity(0.5),
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
 }

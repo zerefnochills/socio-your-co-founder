@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,11 +8,41 @@ class AuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // ── Mock In-Memory Authentication State ───────────────────────
+  static User? _mockUser;
+  static final _mockAuthChanges = StreamController<User?>.broadcast();
+
   // Stream of auth state changes — listened to by the provider
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Stream<User?> get authStateChanges {
+    final controller = StreamController<User?>.broadcast();
+    scheduleMicrotask(() {
+      if (_mockUser != null) {
+        controller.add(_mockUser);
+      } else {
+        controller.add(_auth.currentUser);
+      }
+    });
+
+    final subReal = _auth.authStateChanges().listen((user) {
+      if (_mockUser == null) {
+        controller.add(user);
+      }
+    });
+
+    final subMock = _mockAuthChanges.stream.listen((user) {
+      controller.add(user);
+    });
+
+    controller.onCancel = () {
+      subReal.cancel();
+      subMock.cancel();
+    };
+
+    return controller.stream;
+  }
 
   // Current user (nullable)
-  User? get currentUser => _auth.currentUser;
+  User? get currentUser => _mockUser ?? _auth.currentUser;
 
   // ── Google Sign-In ────────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
@@ -44,16 +75,25 @@ class AuthService {
     }
   }
 
-  // ── Anonymous Sign-In (For Testing/Bypass) ─────────────────────
-  Future<UserCredential?> signInAnonymously() async {
+  // ── Dev/Anonymous Sign-In ─────────────────────────────────────
+  Future<User?> signInAnonymously() async {
     try {
+      // 1. Try real Firebase anonymous auth first
       final userCredential = await _auth.signInAnonymously();
       await _createUserDocIfNeeded(userCredential.user!);
-      return userCredential;
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthError(e);
+      return userCredential.user;
     } catch (e) {
-      throw Exception('Anonymous sign-in failed. Please ensure Anonymous Auth is enabled in Firebase Console.');
+      // 2. Fall back to a local MockUser when Firebase anonymous sign-in is disabled or fails
+      print("Firebase Anonymous auth failed, falling back to local Mock User: $e");
+      final guest = MockUser(
+        uid: 'guest_user',
+        displayName: 'Guest Founder',
+        email: 'guest@socio.ai',
+        photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120',
+      );
+      _mockUser = guest;
+      _mockAuthChanges.add(guest);
+      return guest;
     }
   }
 
@@ -76,6 +116,8 @@ class AuthService {
 
   // ── Sign out ──────────────────────────────────────────────────
   Future<void> signOut() async {
+    _mockUser = null;
+    _mockAuthChanges.add(null);
     await Future.wait([
       _auth.signOut(),
       _googleSignIn.signOut(),
@@ -84,10 +126,10 @@ class AuthService {
 
   // ── Get user display name ─────────────────────────────────────
   String get displayName =>
-      _auth.currentUser?.displayName?.split(' ').first ?? 'Founder';
+      currentUser?.displayName?.split(' ').first ?? 'Founder';
 
   // ── Get user UID ──────────────────────────────────────────────
-  String? get uid => _auth.currentUser?.uid;
+  String? get uid => currentUser?.uid;
 
   // ── Error handler ─────────────────────────────────────────────
   Exception _handleAuthError(FirebaseAuthException e) {
@@ -100,4 +142,31 @@ class AuthService {
         return Exception('Authentication failed: ${e.message}');
     }
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MockUser — implements standard Firebase User interface with noSuchMethod proxy
+// ─────────────────────────────────────────────────────────────────────────────
+class MockUser implements User {
+  @override
+  final String uid;
+
+  @override
+  final String? displayName;
+
+  @override
+  final String? email;
+
+  @override
+  final String? photoURL;
+
+  MockUser({
+    required this.uid,
+    this.displayName,
+    this.email,
+    this.photoURL,
+  });
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
