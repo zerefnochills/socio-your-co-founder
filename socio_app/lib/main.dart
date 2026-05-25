@@ -8,6 +8,7 @@ import 'providers/startup_provider.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'navigation/main_navigation.dart';
+import 'app_theme.dart';
 
 // Handle background FCM messages
 @pragma('vm:entry-point')
@@ -42,15 +43,7 @@ class SocioApp extends ConsumerWidget {
     return MaterialApp(
       title: 'Socio',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0B3A22), // Forest Green primary
-          background: const Color(0xFFF7F4EB), // Warm Cream bg
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF7F4EB),
-        fontFamily: 'Inter',
-      ),
+      theme: SocioTheme.theme,
       home: authState.when(
         data: (user) {
           if (user == null) return const SignInScreen(); // Login Screen!

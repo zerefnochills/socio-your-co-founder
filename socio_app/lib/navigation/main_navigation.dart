@@ -1,487 +1,261 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../app_theme.dart';
+
+// Screens
 import '../screens/chat_screen.dart';
-import '../screens/outreach_screen.dart';
 import '../screens/pipeline_screen.dart';
-import '../providers/auth_provider.dart';
-import '../providers/startup_provider.dart';
-import '../models/startup_model.dart';
+import '../screens/outreach_screen.dart';
+import '../screens/tracker_screen.dart';
+import '../screens/mood_screen.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MainNavigation — Bottom Navigation Shell + Custom Settings
-// Design: Warm minimal, purple #6D28D9 primary, premium micro-animations
-// ─────────────────────────────────────────────────────────────────────────────
-
-class MainNavigation extends ConsumerStatefulWidget {
+class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
   @override
-  ConsumerState<MainNavigation> createState() => _MainNavigationState();
+  State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends ConsumerState<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
+  late AnimationController _animCtrl;
 
-  final List<Widget> _screens = [
-    const ChatScreen(),
-    const OutreachScreen(),
-    const PipelineScreen(),
-    const _SettingsTab(),
+  final List<_NavItem> _items = const [
+    _NavItem(icon: Icons.chat_bubble_outline_rounded, activeIcon: Icons.chat_bubble_rounded, label: 'Chat'),
+    _NavItem(icon: Icons.view_kanban_outlined, activeIcon: Icons.view_kanban_rounded, label: 'Pipeline'),
+    _NavItem(icon: Icons.send_outlined, activeIcon: Icons.send_rounded, label: 'Outreach'),
+    _NavItem(icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart_rounded, label: 'Tracker'),
+    _NavItem(icon: Icons.favorite_outline_rounded, activeIcon: Icons.favorite_rounded, label: 'Mood'),
   ];
 
-  static const _primaryGreen = Color(0xFF0B3A22);
-  static const _sageLight = Color(0xFFE5EFE9);
-  static const _background = Color(0xFFF7F4EB);
-  static const _textPrimary = Color(0xFF15291C);
-  static const _textSecondary = Color(0xFF5E7063);
-  static const _border = Color(0xFFEBE5D8);
-  static const _white = Color(0xFFFFFFFF);
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _background,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: _white,
-          border: Border(
-            top: BorderSide(color: _border.withOpacity(0.6), width: 1),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: _textPrimary.withOpacity(0.03),
-              blurRadius: 16,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded, 'Chat'),
-                _buildNavItem(1, Icons.send_outlined, Icons.send_rounded, 'Outreach'),
-                _buildNavItem(2, Icons.analytics_outlined, Icons.analytics_rounded, 'Pipeline'),
-                _buildNavItem(3, Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData outlineIcon, IconData solidIcon, String label) {
-    final isSelected = _currentIndex == index;
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        setState(() => _currentIndex = index);
-      },
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? _sageLight : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? solidIcon : outlineIcon,
-              color: isSelected ? _primaryGreen : _textSecondary,
-              size: 20,
-            ),
-            if (isSelected) ...[
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: GoogleFonts.dmSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _primaryGreen,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-}
-
-// ── Custom Settings Screen ────────────────────────────────────────────────────
-
-class _SettingsTab extends ConsumerStatefulWidget {
-  const _SettingsTab();
-
-  @override
-  ConsumerState<_SettingsTab> createState() => _SettingsTabState();
-}
-
-class _SettingsTabState extends ConsumerState<_SettingsTab> {
-  final _nameController = TextEditingController();
-  final _ideaController = TextEditingController();
-  final _mrrController = TextEditingController();
-  final _userController = TextEditingController();
-  String _selectedStage = '';
-  bool _isSaving = false;
-
-  static const _purple = Color(0xFF0B3A22); // Reused for deep forest green
-  static const _purpleLight = Color(0xFFE5EFE9); // Reused for light sage
-  static const _white = Color(0xFFFFFFFF);
-  static const _textPrimary = Color(0xFF15291C);
-  static const _textSecondary = Color(0xFF5E7063);
-  static const _border = Color(0xFFEBE5D8);
-  static const _background = Color(0xFFF7F4EB);
-
+  final List<Widget> _screens = const [
+    ChatScreen(),
+    PipelineScreen(),
+    OutreachScreen(),
+    TrackerScreen(),
+    MoodScreen(),
+  ];
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final startup = ref.read(startupNotifierProvider).value;
-      if (startup != null) {
-        _nameController.text = startup.name;
-        _ideaController.text = startup.idea;
-        _mrrController.text = startup.mrr;
-        _userController.text = startup.userCount;
-        setState(() => _selectedStage = startup.stage);
-      }
-    });
+    _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _ideaController.dispose();
-    _mrrController.dispose();
-    _userController.dispose();
+    _animCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _saveContext() async {
-    setState(() => _isSaving = true);
-    HapticFeedback.mediumImpact();
-
-    try {
-      final current = ref.read(startupNotifierProvider).value;
-      final updated = StartupModel(
-        id: current?.id ?? '',
-        name: _nameController.text.trim(),
-        idea: _ideaController.text.trim(),
-        stage: _selectedStage.isEmpty ? 'Idea stage' : _selectedStage,
-        mrr: _mrrController.text.trim().isEmpty ? '0' : _mrrController.text.trim(),
-        userCount: _userController.text.trim().isEmpty ? '0' : _userController.text.trim(),
-        updatedAt: DateTime.now(),
-      );
-
-      await ref.read(startupNotifierProvider.notifier).save(updated);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Startup context saved successfully!', style: GoogleFonts.dmSans(color: _white)),
-            backgroundColor: _purple,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Error: $e', style: GoogleFonts.dmSans(color: _white)),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
+  void _onTap(int index) {
+    if (index == _currentIndex) return;
+    HapticFeedback.selectionClick();
+    _animCtrl.forward(from: 0);
+    setState(() => _currentIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final founderName = ref.watch(founderNameProvider);
-
     return Scaffold(
-      backgroundColor: _background,
-      appBar: AppBar(
-        backgroundColor: _white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: Text(
-          'Startup Settings',
-          style: GoogleFonts.fraunces(
-            fontWeight: FontWeight.bold,
-            color: _textPrimary,
-          ),
-        ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              HapticFeedback.mediumImpact();
-              ref.read(signInNotifierProvider.notifier).signOut();
-            },
-            icon: const Icon(Icons.logout_rounded, color: Colors.red),
-            tooltip: 'Log out',
-          ),
-        ],
+      backgroundColor: SocioTheme.creamBg,
+      body: IndexedStack(index: _currentIndex, children: _screens),
+      extendBody: true,
+      bottomNavigationBar: _FloatingNavBar(
+        items: _items,
+        currentIndex: _currentIndex,
+        onTap: _onTap,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User greeting card
-            Container(
-              padding: const EdgeInsets.all(16),
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1B5E3A), _purple],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: _purple.withOpacity(0.2),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Hey, $founderName 👋',
-                    style: GoogleFonts.fraunces(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: _white,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Keep your startup details fresh so Socio can generate highly accurate insights and responses.',
-                    style: GoogleFonts.dmSans(
-                      fontSize: 13,
-                      color: _white.withOpacity(0.9),
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+    );
+  }
+}
 
-            // Form Title
-            Text(
-              'Startup Profile',
-              style: GoogleFonts.dmSans(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: _textPrimary,
+class _FloatingNavBar extends StatelessWidget {
+  const _FloatingNavBar({
+    required this.items,
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  final List<_NavItem> items;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            color: SocioTheme.inkDeep,
+            borderRadius: SocioTheme.radiusFull,
+            boxShadow: [
+              BoxShadow(
+                color: SocioTheme.inkBlack.withOpacity(0.20),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: SocioTheme.inkBlack.withOpacity(0.08),
+                blurRadius: 48,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: List.generate(
+              items.length,
+              (i) => _NavTile(
+                item: items[i],
+                isActive: currentIndex == i,
+                onTap: () => onTap(i),
               ),
             ),
-            const SizedBox(height: 12),
-
-            _buildField(
-              controller: _nameController,
-              label: 'Startup Name',
-              hint: 'e.g. Socio',
-              icon: Icons.business_rounded,
-            ),
-            const SizedBox(height: 14),
-
-            _buildField(
-              controller: _ideaController,
-              label: 'One-line Description',
-              hint: 'What are you building?',
-              icon: Icons.lightbulb_outline_rounded,
-              maxLines: 3,
-            ),
-            const SizedBox(height: 14),
-
-            _buildStageDropdown(),
-            const SizedBox(height: 14),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _buildField(
-                    controller: _mrrController,
-                    label: 'MRR (\$)',
-
-                    hint: 'e.g. 1500',
-                    icon: Icons.attach_money_rounded,
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _buildField(
-                    controller: _userController,
-                    label: 'User Count',
-                    hint: 'e.g. 240',
-                    icon: Icons.people_outline_rounded,
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
-
-            // Save button
-            GestureDetector(
-              onTap: _isSaving ? null : _saveContext,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: double.infinity,
-                height: 54,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF164E30), _purple],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _purple.withOpacity(0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : Text(
-                          'Save Startup Profile',
-                          style: GoogleFonts.dmSans(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _white,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    int maxLines = 1,
-    TextInputType keyboardType = TextInputType.text,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: _textSecondary),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color: _white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _border),
-          ),
-          child: TextField(
-            controller: controller,
-            maxLines: maxLines,
-            minLines: maxLines == 1 ? 1 : 2,
-            keyboardType: keyboardType,
-            style: GoogleFonts.dmSans(fontSize: 14, color: _textPrimary),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: GoogleFonts.dmSans(fontSize: 14, color: _textSecondary.withOpacity(0.5)),
-              prefixIcon: Icon(icon, size: 18, color: _purple),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+class _NavTile extends StatefulWidget {
+  const _NavTile({
+    required this.item,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  final _NavItem item;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  @override
+  State<_NavTile> createState() => _NavTileState();
+}
+
+class _NavTileState extends State<_NavTile> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    );
+    _scaleAnim = Tween<double>(begin: 1.0, end: 0.88).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      behavior: HitTestBehavior.opaque,
+      child: ScaleTransition(
+        scale: _scaleAnim,
+        child: SizedBox(
+          width: 64,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: ScaleTransition(scale: Tween(begin: 0.7, end: 1.0).animate(anim), child: child),
             ),
+            child: widget.isActive
+                ? _ActiveTile(key: ValueKey('a${widget.item.label}'), item: widget.item)
+                : _InactiveTile(key: ValueKey('i${widget.item.label}'), item: widget.item),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveTile extends StatelessWidget {
+  const _ActiveTile({super.key, required this.item});
+  final _NavItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: SocioTheme.forestGreen,
+            borderRadius: SocioTheme.radiusFull,
+          ),
+          child: Icon(item.activeIcon, color: Colors.white, size: 18),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          item.label,
+          style: GoogleFonts.dmSans(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            letterSpacing: 0.4,
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildStageDropdown() {
-    final stages = [
-      'Idea stage',
-      'Building MVP',
-      'Pre-launch',
-      'Live & growing',
-      'Raising funds',
-    ];
+class _InactiveTile extends StatelessWidget {
+  const _InactiveTile({super.key, required this.item});
+  final _NavItem item;
 
+  @override
+  Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        Icon(item.icon, color: Colors.white.withOpacity(0.38), size: 20),
+        const SizedBox(height: 4),
         Text(
-          'Startup Stage',
-          style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: _textSecondary),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: _white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _border),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: stages.contains(_selectedStage) ? _selectedStage : 'Idea stage',
-              isExpanded: true,
-              icon: const Icon(Icons.arrow_drop_down_rounded, color: _purple),
-              style: GoogleFonts.dmSans(fontSize: 14, color: _textPrimary),
-              onChanged: (val) {
-                if (val != null) setState(() => _selectedStage = val);
-              },
-              items: stages.map((s) {
-                return DropdownMenuItem(
-                  value: s,
-                  child: Text(s),
-                );
-              }).toList(),
-            ),
+          item.label,
+          style: GoogleFonts.dmSans(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w500,
+            color: Colors.white.withOpacity(0.35),
+            letterSpacing: 0.3,
           ),
         ),
       ],
     );
   }
+}
+
+class _NavItem {
+  const _NavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+  });
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
 }

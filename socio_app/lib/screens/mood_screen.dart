@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../app_theme.dart';
 
+/// Socio Wellness/Mood Screen — refined premium daily wellness standup.
+/// Aesthetic: Warm editorial luxury.
 class MoodScreen extends ConsumerStatefulWidget {
   const MoodScreen({super.key});
 
@@ -13,49 +18,51 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
   String _selectedEmotion = 'Focused';
 
   final List<Map<String, dynamic>> _emotions = [
-    {'name': 'Stressed', 'icon': Icons.sentiment_very_dissatisfied_rounded, 'color': Color(0xFFDC2626)},
-    {'name': 'Anxious', 'icon': Icons.sentiment_dissatisfied_rounded, 'color': Color(0xFFD97706)},
-    {'name': 'Focused', 'icon': Icons.sentiment_neutral_rounded, 'color': Color(0xFF6D28D9)},
-    {'name': 'Excited', 'icon': Icons.sentiment_satisfied_rounded, 'color': Color(0xFF059669)},
-    {'name': 'Peaceful', 'icon': Icons.sentiment_very_satisfied_rounded, 'color': Color(0xFF0EA5E9)},
+    {'name': 'Stressed', 'icon': Icons.sentiment_very_dissatisfied_rounded, 'color': SocioTheme.rose},
+    {'name': 'Anxious', 'icon': Icons.sentiment_dissatisfied_rounded, 'color': SocioTheme.amber},
+    {'name': 'Focused', 'icon': Icons.sentiment_neutral_rounded, 'color': SocioTheme.violet},
+    {'name': 'Excited', 'icon': Icons.sentiment_satisfied_rounded, 'color': SocioTheme.emeraldAccent},
+    {'name': 'Peaceful', 'icon': Icons.sentiment_very_satisfied_rounded, 'color': Colors.blue},
   ];
 
   final List<double> _weeklyScores = [4.0, 3.5, 2.0, 3.0, 4.5, 3.0, 3.8];
 
   void _submitCheckIn() {
+    HapticFeedback.mediumImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Daily standup check-in completed! Feel: $_selectedEmotion ($_selectedScore/5) 🧠'),
-        backgroundColor: const Color(0xFF059669),
+        backgroundColor: SocioTheme.forestGreen,
       ),
     );
   }
 
   void _triggerSOS() {
+    HapticFeedback.vibrate();
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: const RoundedRectangleBorder(borderRadius: SocioTheme.radiusMd),
           backgroundColor: const Color(0xFFFFF1F2), // Light red warning tone
           title: Row(
-            children: const [
-              Icon(Icons.gpp_maybe_rounded, color: Color(0xFFDC2626), size: 28),
-              SizedBox(width: 8),
+            children: [
+              const Icon(Icons.gpp_maybe_rounded, color: SocioTheme.rose, size: 28),
+              const SizedBox(width: 8),
               Text(
                 'Founder SOS Active',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold, color: const Color(0xFF991B1B)),
               ),
             ],
           ),
-          content: const Text(
+          content: Text(
             'Running a startup alone is incredibly taxing. Socio AI is ready to listen in "Crisis Mode" (Devil\'s Advocate + Strategist dynamic hybrid) to stress-test your thoughts or help you decompress. \n\nWould you like to initiate a priority SOS session now?',
-            style: TextStyle(color: Color(0xFF7F1D1D), height: 1.5),
+            style: GoogleFonts.dmSans(color: const Color(0xFF7F1D1D), height: 1.5),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Maybe Later', style: TextStyle(color: Color(0xFF64748B))),
+              child: Text('Maybe Later', style: GoogleFonts.dmSans(color: SocioTheme.mutedText)),
             ),
             ElevatedButton(
               onPressed: () {
@@ -63,15 +70,17 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('SOS dynamic session loaded. Go to Chat tab! ⚡'),
-                    backgroundColor: Color(0xFFDC2626),
+                    backgroundColor: SocioTheme.rose,
                   ),
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: SocioTheme.rose,
               ),
-              child: const Text('Start SOS Chat', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              child: Text(
+                'Start SOS Chat',
+                style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         );
@@ -82,13 +91,16 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7FF),
+      backgroundColor: SocioTheme.creamBg,
       appBar: AppBar(
-        title: const Text('Founder Wellness', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-        backgroundColor: Colors.white,
+        title: Text(
+          'Founder Wellness',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: SocioTheme.slateText),
+        ),
+        backgroundColor: SocioTheme.creamBg,
         elevation: 0,
         centerTitle: false,
-        shape: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+        shape: const Border(bottom: BorderSide(color: SocioTheme.creamBorder)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -105,6 +117,7 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
 
             // SOS Alert Panel
             _buildSOSCard(),
+            const SizedBox(height: 80), // bottom safe padding for floating navbar
           ],
         ),
       ),
@@ -114,22 +127,18 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
   Widget _buildCheckInCard() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      decoration: socioCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'How is your founder mind today?',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: SocioTheme.slateText),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Daily check-ins calibrate Socio AI\'s tone and thinking styles to match your current mental bandwidth.',
-            style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+            style: GoogleFonts.dmSans(fontSize: 12, color: SocioTheme.mutedText, height: 1.4),
           ),
           const SizedBox(height: 20),
           
@@ -142,18 +151,19 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
 
               return GestureDetector(
                 onTap: () {
+                  HapticFeedback.selectionClick();
                   setState(() {
                     _selectedEmotion = emotion['name'];
                   });
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
                   decoration: BoxDecoration(
-                    color: isSelected ? color.withOpacity(0.08) : const Color(0xFFF8F9FA),
+                    color: isSelected ? color.withOpacity(0.08) : SocioTheme.creamBg,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: isSelected ? color : const Color(0xFFE2E8F0),
+                      color: isSelected ? color : SocioTheme.creamBorder,
                       width: isSelected ? 1.5 : 1,
                     ),
                   ),
@@ -161,16 +171,16 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
                     children: [
                       Icon(
                         emotion['icon'] as IconData,
-                        color: isSelected ? color : const Color(0xFF64748B),
+                        color: isSelected ? color : SocioTheme.mutedText,
                         size: 24,
                       ),
                       const SizedBox(height: 6),
                       Text(
                         emotion['name'] as String,
-                        style: TextStyle(
+                        style: GoogleFonts.dmSans(
                           fontSize: 11,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: isSelected ? color : const Color(0xFF64748B),
+                          color: isSelected ? color : SocioTheme.mutedText,
                         ),
                       ),
                     ],
@@ -184,9 +194,9 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
           // Stress/Energy Slider
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text('Energy / Mood Level', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
-              Text('Scale: 1 (Critical) to 5 (Peak)', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+            children: [
+              Text('Energy / Mood Level', style: GoogleFonts.dmSans(fontSize: 12, fontWeight: FontWeight.bold, color: SocioTheme.mutedText)),
+              Text('Scale: 1 (Critical) to 5 (Peak)', style: GoogleFonts.dmSans(fontSize: 10, color: SocioTheme.placeholderText)),
             ],
           ),
           Slider(
@@ -194,8 +204,8 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
             min: 1,
             max: 5,
             divisions: 4,
-            activeColor: const Color(0xFF6D28D9),
-            inactiveColor: const Color(0xFFE2E8F0),
+            activeColor: SocioTheme.forestGreen,
+            inactiveColor: SocioTheme.creamBorder,
             onChanged: (val) {
               setState(() {
                 _selectedScore = val.toInt();
@@ -209,13 +219,7 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
             height: 48,
             child: ElevatedButton(
               onPressed: _submitCheckIn,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6D28D9),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              child: const Text('Check In Standup', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text('Check In Standup'),
             ),
           ),
         ],
@@ -226,17 +230,13 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
   Widget _buildWeeklyTrendCard() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      decoration: socioCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Mental Bandwidth Analytics',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: SocioTheme.slateText),
           ),
           const SizedBox(height: 16),
           // Graphical bar representation
@@ -255,8 +255,8 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: score < 3.0
-                            ? [const Color(0xFFF43F5E), const Color(0xFFFB7185)]
-                            : [const Color(0xFF6D28D9), const Color(0xFFC084FC)],
+                            ? [SocioTheme.rose, SocioTheme.rose.withOpacity(0.5)]
+                            : [SocioTheme.forestGreen, SocioTheme.forestGreenLt],
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                       ),
@@ -266,7 +266,7 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
                   const SizedBox(height: 8),
                   Text(
                     days[index],
-                    style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                    style: GoogleFonts.dmSans(fontSize: 10, color: SocioTheme.mutedText, fontWeight: FontWeight.w600),
                   ),
                 ],
               );
@@ -282,14 +282,14 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFE11D48), Color(0xFFBE123C)],
+          colors: [SocioTheme.rose, Color(0xFF991B1B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFE11D48).withOpacity(0.3),
+            color: SocioTheme.rose.withOpacity(0.2),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
@@ -299,19 +299,19 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
-              Icon(Icons.gpp_maybe_rounded, color: Colors.white, size: 24),
-              SizedBox(width: 8),
+            children: [
+              const Icon(Icons.gpp_maybe_rounded, color: Colors.white, size: 24),
+              const SizedBox(width: 8),
               Text(
                 'FOUNDER S.O.S.',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Is everything crashing down? Under too much weight? Press this to put Socio in protective "SOS mode" immediately to prioritize stress decompression, action items mapping, and clear advice.',
-            style: TextStyle(color: Color(0xFFFFE4E6), fontSize: 13, height: 1.4),
+            style: GoogleFonts.dmSans(color: const Color(0xFFFFE4E6), fontSize: 13, height: 1.4),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -321,11 +321,14 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
               onPressed: _triggerSOS,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFFBE123C),
+                foregroundColor: const Color(0xFF991B1B),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
-              child: const Text('TRIGGER S.O.S.', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+              child: Text(
+                'TRIGGER S.O.S.',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w900, letterSpacing: 0.5),
+              ),
             ),
           ),
         ],

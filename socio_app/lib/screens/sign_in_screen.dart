@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../app_theme.dart';
 import '../providers/auth_provider.dart';
 
+/// Socio Sign In — warm editorial luxury aesthetic.
+/// Full-screen forest green upper half, cream card bottom half. 
+/// No gradient slop. Strong typography. One clear CTA.
 class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
@@ -10,377 +14,381 @@ class SignInScreen extends ConsumerStatefulWidget {
   ConsumerState<SignInScreen> createState() => _SignInScreenState();
 }
 
-class _SignInScreenState extends ConsumerState<SignInScreen> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
+class _SignInScreenState extends ConsumerState<SignInScreen>
+    with SingleTickerProviderStateMixin {
+  bool _isLoading = false;
+  late AnimationController _fadeCtrl;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
 
-  // ── Design Tokens (Pi AI Cream/Green Aesthetic) ──────────────────────────
-  static const _green = Color(0xFF0B3A22); // Deep Forest Green primary
-  static const _sageLight = Color(0xFFE5EFE9); // Light Sage
-  static const _sageMedium = Color(0xFF4F8F6F); // Medium Sage
-  static const _cream = Color(0xFFF7F4EB); // Warm Cream bg
-  static const _textPrimary = Color(0xFF15291C); // Dark charcoal/green
-  static const _textSecondary = Color(0xFF5E7063); // Muted Sage
-  static const _border = Color(0xFFEBE5D8); // Warm beige borders
-  static const _white = Color(0xFFFFFFFF);
-
-  final List<SignInOnboardingItem> _items = [
-    SignInOnboardingItem(
-      title: 'Your AI Co-Founder',
-      subtitle: 'Every founder deserves a partner. Meet Socio, your persistent AI co-founder that helps you brainstorm, build, and scale.',
-      icon: Icons.rocket_launch_rounded,
-      gradientStart: const Color(0xFF0B3A22),
-      gradientEnd: const Color(0xFF4F8F6F),
-    ),
-    SignInOnboardingItem(
-      title: 'Adaptive Persona Engine',
-      subtitle: 'No complex prompts or mode switching. Socio reads your vibe and dynamically blends Skeptic, Hustler, and Strategist modes.',
-      icon: Icons.psychology_rounded,
-      gradientStart: const Color(0xFF15291C),
-      gradientEnd: const Color(0xFF5E7063),
-    ),
-    SignInOnboardingItem(
-      title: 'Outreach & Funding Pipeline',
-      subtitle: 'Draft investor follow-ups, research targets, write hyper-personalized cold emails, and stress-test your startup ideas.',
-      icon: Icons.monetization_on_rounded,
-      gradientStart: const Color(0xFF0B3A22),
-      gradientEnd: const Color(0xFF5E7063),
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOutCubic));
+    _fadeCtrl.forward();
+  }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _fadeCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final signInState = ref.watch(signInNotifierProvider);
-    final isLoading = signInState is AsyncLoading;
+    final isLoading = signInState is AsyncLoading || _isLoading;
 
     return Scaffold(
-      backgroundColor: _cream,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-          child: Column(
-            children: [
-              // Top Bar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Logo
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: _green,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'S',
-                          style: TextStyle(
-                            color: _cream,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Socio',
-                        style: GoogleFonts.outfit(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: _textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Bypass Button for Easy Testing
-                  if (_currentPage < _items.length - 1)
-                    TextButton(
-                      onPressed: () {
-                        _pageController.animateToPage(
-                          _items.length - 1,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      },
-                      child: Text(
-                        'Skip',
-                        style: TextStyle(
-                          color: _textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+      backgroundColor: SocioTheme.forestGreen,
+      body: Stack(
+        children: [
+          // ── Background noise texture (subtle depth) ─────────────────
+          Positioned.fill(
+            child: CustomPaint(painter: _NoisePatternPainter()),
+          ),
 
-              // Page View
-              Expanded(
-                child: PageView.builder(
-                  controller: _pageController,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentPage = index;
-                    });
-                  },
-                  itemCount: _items.length,
-                  itemBuilder: (context, index) {
-                    final item = _items[index];
-                    return Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+          // ── Top hero section ────────────────────────────────────────
+          FadeTransition(
+            opacity: _fadeAnim,
+            child: SlideTransition(
+              position: _slideAnim,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 52,
+                  left: 32,
+                  right: 32,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Logo lockup
+                    Row(
                       children: [
-                        // Decorative Icon with Gradient Background
                         Container(
-                          height: 160,
-                          width: 160,
+                          width: 40,
+                          height: 40,
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [item.gradientStart, item.gradientEnd],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                            color: Colors.white.withOpacity(0.15),
+                            borderRadius: SocioTheme.radiusSm,
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.25), width: 1,
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: item.gradientStart.withOpacity(0.2),
-                                blurRadius: 24,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
                           ),
-                          child: Icon(
-                            item.icon,
-                            size: 72,
-                            color: _cream,
+                          child: const Icon(
+                            Icons.hub_rounded,
+                            color: Colors.white,
+                            size: 22,
                           ),
                         ),
-                        const SizedBox(height: 48),
-
-                        // Title
+                        const SizedBox(width: 12),
                         Text(
-                          item.title,
+                          'socio',
                           style: GoogleFonts.outfit(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: _textPrimary,
-                            height: 1.2,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Subtitle
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                          child: Text(
-                            item.subtitle,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: _textSecondary,
-                              height: 1.5,
-                            ),
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: -0.8,
                           ),
                         ),
                       ],
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 40),
+
+                    // Hero headline
+                    Text(
+                      'Every founder\ndeserves a\nco-founder.',
+                      style: GoogleFonts.outfit(
+                        fontSize: 42,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.05,
+                        letterSpacing: -1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Now you have one.',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withOpacity(0.65),
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
+          ),
 
-              // Bottom Area
-              Column(
-                children: [
-                  // Page Indicators
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      _items.length,
-                      (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        height: 8,
-                        width: _currentPage == index ? 24 : 8,
-                        decoration: BoxDecoration(
-                          color: _currentPage == index
-                              ? _green
-                              : _border,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+          // ── Bottom card ─────────────────────────────────────────────
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: Container(
+                padding: EdgeInsets.fromLTRB(
+                  28, 32, 28,
+                  MediaQuery.of(context).padding.bottom + 32,
+                ),
+                decoration: const BoxDecoration(
+                  color: SocioTheme.creamBg,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+
+                    Text(
+                      'Sign in to continue',
+                      style: GoogleFonts.outfit(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        color: SocioTheme.slateText,
+                        letterSpacing: -0.3,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  if (isLoading)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.0),
-                      child: CircularProgressIndicator(
-                        color: _green,
+                    const SizedBox(height: 6),
+                    Text(
+                      'Your startup context is saved and synced across sessions.',
+                      style: GoogleFonts.dmSans(
+                        fontSize: 13,
+                        color: SocioTheme.mutedText,
+                        height: 1.5,
                       ),
-                    )
-                  else if (_currentPage == _items.length - 1)
-                    // final Step Options
-                    Column(
-                      children: [
-                        // Google Sign-In
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton.icon(
-                            onPressed: () async {
-                              final success = await ref
-                                  .read(signInNotifierProvider.notifier)
-                                  .signInWithGoogle();
-                              if (!mounted) return;
-                              if (!success) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Google Sign-In failed or cancelled.'),
-                                    backgroundColor: Color(0xFFDC2626),
-                                  ),
-                                );
-                              }
-                            },
-                            icon: Image.network(
-                              'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
-                              height: 24,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Icon(Icons.login, color: _green),
-                            ),
-                            label: Text(
-                              'Sign In with Google',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: _textPrimary,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _white,
-                              foregroundColor: _textPrimary,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                side: const BorderSide(
-                                  color: _border,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
+                    ),
+                    const SizedBox(height: 28),
 
-                        // Dev/Anonymous Sign-In
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: TextButton(
-                            onPressed: () async {
-                              final success = await ref
-                                  .read(signInNotifierProvider.notifier)
-                                  .signInAnonymously();
-                              if (!mounted) return;
-                              if (success) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Logged in with Dev Account! 🎉'),
-                                    backgroundColor: Color(0xFF059669),
-                                  ),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Dev Login failed. Make sure Anonymous Auth is enabled.'),
-                                    backgroundColor: Color(0xFFDC2626),
-                                  ),
-                                );
-                              }
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: _green,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: const Text(
-                              'Continue with Dev Account (Bypass)',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    // Next Button
+                    // Google Sign In button
+                    _GoogleSignInButton(
+                      isLoading: isLoading,
+                      onTap: _handleGoogleSignIn,
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Offline mode
                     SizedBox(
                       width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _pageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _green,
-                          foregroundColor: _cream,
-                          elevation: 0,
+                      child: TextButton(
+                        onPressed: _handleOfflineMode,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: SocioTheme.radiusMd,
+                            side: const BorderSide(color: SocioTheme.creamBorder, width: 1.5),
                           ),
                         ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Get Started',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            Icon(Icons.arrow_forward_rounded, size: 20),
-                          ],
+                        child: Text(
+                          'Continue with Dev Account (Bypass)',
+                          style: GoogleFonts.dmSans(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: SocioTheme.forestGreen,
+                          ),
                         ),
                       ),
                     ),
-                  const SizedBox(height: 16),
-                ],
+
+                    const SizedBox(height: 20),
+
+                    // Trust signals
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _TrustBadge(Icons.lock_outline_rounded, 'Private'),
+                        const SizedBox(width: 20),
+                        _TrustBadge(Icons.cloud_off_outlined, 'No cold storage'),
+                        const SizedBox(width: 20),
+                        _TrustBadge(Icons.bolt_outlined, 'Sub-2s response'),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final success = await ref
+          .read(signInNotifierProvider.notifier)
+          .signInWithGoogle();
+      if (!mounted) return;
+      if (!success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google Sign-In failed or cancelled.'),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
+      }
+    } catch (e) {
+      // error
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleOfflineMode() async {
+    setState(() => _isLoading = true);
+    try {
+      final success = await ref
+          .read(signInNotifierProvider.notifier)
+          .signInAnonymously();
+      if (!mounted) return;
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Logged in with Dev Account! 🎉'),
+            backgroundColor: Color(0xFF059669),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Dev Login failed. Make sure Anonymous Auth is enabled.'),
+            backgroundColor: Color(0xFFDC2626),
+          ),
+        );
+      }
+    } catch (e) {
+      // error
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+}
+
+// ── Sub-components ──────────────────────────────────────────────────────────
+
+class _GoogleSignInButton extends StatefulWidget {
+  const _GoogleSignInButton({required this.isLoading, required this.onTap});
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  @override
+  State<_GoogleSignInButton> createState() => _GoogleSignInButtonState();
+}
+
+class _GoogleSignInButtonState extends State<_GoogleSignInButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        child: Container(
+          width: double.infinity,
+          height: 52,
+          decoration: BoxDecoration(
+            color: SocioTheme.forestGreen,
+            borderRadius: SocioTheme.radiusMd,
+            boxShadow: SocioTheme.shadowGreen,
+          ),
+          child: widget.isLoading
+              ? const Center(
+                  child: SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white,
+                    ),
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Google G icon
+                    Container(
+                      width: 22, height: 22,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'G',
+                          style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700,
+                            color: Color(0xFF4285F4),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Continue with Google',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15, fontWeight: FontWeight.w600,
+                        color: Colors.white, letterSpacing: 0.1,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
   }
 }
 
-class SignInOnboardingItem {
-  final String title;
-  final String subtitle;
+class _TrustBadge extends StatelessWidget {
+  const _TrustBadge(this.icon, this.label);
   final IconData icon;
-  final Color gradientStart;
-  final Color gradientEnd;
+  final String label;
 
-  SignInOnboardingItem({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.gradientStart,
-    required this.gradientEnd,
-  });
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 13, color: SocioTheme.mutedText),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: GoogleFonts.dmSans(
+            fontSize: 11, color: SocioTheme.mutedText,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
+/// Subtle dot-grid pattern painted on the green background for depth.
+class _NoisePatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.04)
+      ..style = PaintingStyle.fill;
+
+    const spacing = 24.0;
+    const radius = 1.2;
+
+    for (double x = 0; x < size.width; x += spacing) {
+      for (double y = 0; y < size.height * 0.65; y += spacing) {
+        canvas.drawCircle(Offset(x, y), radius, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}

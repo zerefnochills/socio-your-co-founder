@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../app_theme.dart';
 import '../models/startup_model.dart';
 import '../providers/startup_provider.dart';
 import '../navigation/main_navigation.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// OnboardingScreen — Socio AI Co-Founder App
-// Design: Warm minimal (Pi AI reference), purple #6D28D9 accent, off-white bg
-// Step 1: Startup name | Step 2: One-line idea | Step 3: Current stage
-// ─────────────────────────────────────────────────────────────────────────────
-
+/// OnboardingScreen — Socio AI Co-Founder App
+/// Design: Warm minimal editorial luxury, responsive steps, strong typography.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -36,17 +33,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   late final AnimationController _fadeInController;
   late final Animation<double> _avatarPulse;
   late final Animation<double> _fadeIn;
-
-  // ── Design tokens ────────────────────────────────────────────────────────────
-  static const _purple = Color(0xFF0B3A22); // Forest Green primary
-  static const _purpleLight = Color(0xFFE5EFE9); // Light Sage
-  static const _purpleMid = Color(0xFF4F8F6F); // Medium Sage
-  static const _background = Color(0xFFF7F4EB); // Warm Cream
-  static const _textPrimary = Color(0xFF15291C);
-  static const _textSecondary = Color(0xFF5E7063);
-  static const _border = Color(0xFFEBE5D8);
-  static const _white = Color(0xFFFFFFFF);
-
 
   // ── Stage options ────────────────────────────────────────────────────────────
   final List<_StageOption> _stages = [
@@ -159,11 +145,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           SnackBar(
             content: Text(
               '✅ Welcome to Socio, ${_nameController.text.trim()}!',
-              style: GoogleFonts.dmSans(color: _white),
+              style: GoogleFonts.dmSans(color: Colors.white),
             ),
-            backgroundColor: _purple,
+            backgroundColor: SocioTheme.forestGreen,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: const RoundedRectangleBorder(borderRadius: SocioTheme.radiusMd),
           ),
         );
 
@@ -180,11 +166,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           SnackBar(
             content: Text(
               '❌ Error: $e',
-              style: GoogleFonts.dmSans(color: _white),
+              style: GoogleFonts.dmSans(color: Colors.white),
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: SocioTheme.rose,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: const RoundedRectangleBorder(borderRadius: SocioTheme.radiusMd),
           ),
         );
       }
@@ -200,7 +186,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         statusBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: _background,
+        backgroundColor: SocioTheme.creamBg,
         body: SafeArea(
           child: Column(
             children: [
@@ -239,20 +225,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               child: Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  color: _white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _textPrimary.withOpacity(0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
+                decoration: socioCardDecoration(),
                 child: const Icon(Icons.arrow_back_ios_new_rounded,
-                    size: 16, color: _textPrimary),
+                    size: 16, color: SocioTheme.slateText),
               ),
             ),
           ),
@@ -261,7 +236,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             '${_currentStep + 1} of 3',
             style: GoogleFonts.dmSans(
               fontSize: 13,
-              color: _textSecondary,
+              color: SocioTheme.mutedText,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -288,9 +263,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 decoration: BoxDecoration(
                   color: isComplete || isCurrent
                       ? isCurrent
-                          ? _purple
-                          : _purpleMid
-                      : _border,
+                          ? SocioTheme.forestGreen
+                          : SocioTheme.forestGreenLt
+                      : SocioTheme.creamBorder,
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -315,11 +290,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             const SizedBox(height: 32),
             Text(
               'Meet Socio.',
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.outfit(
                 fontSize: 38,
                 fontWeight: FontWeight.w700,
-                color: _textPrimary,
+                color: SocioTheme.slateText,
                 height: 1.1,
+                letterSpacing: -1.0,
               ),
             ),
             const SizedBox(height: 10),
@@ -327,7 +303,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               'Your AI co-founder, available 24/7.\nLet\'s start with your startup.',
               style: GoogleFonts.dmSans(
                 fontSize: 16,
-                color: _textSecondary,
+                color: SocioTheme.mutedText,
                 height: 1.6,
               ),
             ),
@@ -363,11 +339,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             const SizedBox(height: 32),
             Text(
               'What are you\nbuilding?',
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.outfit(
                 fontSize: 36,
                 fontWeight: FontWeight.w700,
-                color: _textPrimary,
+                color: SocioTheme.slateText,
                 height: 1.15,
+                letterSpacing: -1.0,
               ),
             ),
             const SizedBox(height: 10),
@@ -375,7 +352,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               'One clear sentence. Your co-founder\nneeds to understand your vision.',
               style: GoogleFonts.dmSans(
                 fontSize: 16,
-                color: _textSecondary,
+                color: SocioTheme.mutedText,
                 height: 1.6,
               ),
             ),
@@ -411,11 +388,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             const SizedBox(height: 32),
             Text(
               'Where are you\nright now?',
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.outfit(
                 fontSize: 36,
                 fontWeight: FontWeight.w700,
-                color: _textPrimary,
+                color: SocioTheme.slateText,
                 height: 1.15,
+                letterSpacing: -1.0,
               ),
             ),
             const SizedBox(height: 10),
@@ -423,7 +401,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               'Socio adapts its advice to your\nexact stage. No fluff, just signal.',
               style: GoogleFonts.dmSans(
                 fontSize: 16,
-                color: _textSecondary,
+                color: SocioTheme.mutedText,
                 height: 1.6,
               ),
             ),
@@ -446,26 +424,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              gradient: const RadialGradient(
-                colors: [Color(0xFF1B5E3A), _purple],
-                center: Alignment(-0.3, -0.3),
-              ),
+              color: SocioTheme.forestGreen,
               borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: _purple.withOpacity(0.35),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+              boxShadow: SocioTheme.shadowGreen,
             ),
             child: Center(
               child: Text(
                 'S',
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.outfit(
                   fontSize: 26,
                   fontWeight: FontWeight.w700,
-                  color: _white,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -474,14 +443,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: _purpleLight,
+              color: SocioTheme.forestGreen.withOpacity(0.08),
               borderRadius: BorderRadius.circular(99),
             ),
             child: Text(
               'Socio AI',
               style: GoogleFonts.dmSans(
                 fontSize: 13,
-                color: _purple,
+                color: SocioTheme.forestGreen,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.3,
               ),
@@ -498,7 +467,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       style: GoogleFonts.dmSans(
         fontSize: 14,
         fontWeight: FontWeight.w600,
-        color: _textPrimary,
+        color: SocioTheme.slateText,
         letterSpacing: 0.2,
       ),
     );
@@ -512,18 +481,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     required ValueChanged<String> onChanged,
   }) {
     return Container(
-      decoration: BoxDecoration(
-        color: _white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
-        boxShadow: [
-          BoxShadow(
-            color: _textPrimary.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: socioCardDecoration(elevated: true),
       child: TextField(
         controller: controller,
         maxLines: maxLines,
@@ -532,18 +490,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         onChanged: onChanged,
         style: GoogleFonts.dmSans(
           fontSize: 15,
-          color: _textPrimary,
+          color: SocioTheme.slateText,
           height: 1.5,
         ),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: GoogleFonts.dmSans(
             fontSize: 15,
-            color: _textSecondary.withOpacity(0.7),
+            color: SocioTheme.placeholderText,
           ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          filled: false,
         ),
       ),
     );
@@ -553,14 +514,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: _purpleLight.withOpacity(0.6),
+        color: SocioTheme.forestGreen.withOpacity(0.06),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
         text,
         style: GoogleFonts.dmSans(
           fontSize: 13,
-          color: _purple.withOpacity(0.85),
+          color: SocioTheme.forestGreenLt,
           height: 1.4,
         ),
       ),
@@ -580,21 +541,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
-          color: isSelected ? _purple : _white,
+          color: isSelected ? SocioTheme.forestGreen : SocioTheme.creamCard,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? _purple : _border,
+            color: isSelected ? SocioTheme.forestGreen : SocioTheme.creamBorder,
             width: isSelected ? 2 : 1,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: isSelected
-                  ? _purple.withOpacity(0.2)
-                  : _textPrimary.withOpacity(0.04),
-              blurRadius: isSelected ? 16 : 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: isSelected ? SocioTheme.shadowGreen : SocioTheme.shadowSm,
         ),
         child: Row(
           children: [
@@ -605,7 +558,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               style: GoogleFonts.dmSans(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? _white : _textPrimary,
+                color: isSelected ? Colors.white : SocioTheme.slateText,
               ),
             ),
             const Spacer(),
@@ -615,14 +568,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               height: 22,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected ? _white : Colors.transparent,
+                color: isSelected ? Colors.white : Colors.transparent,
                 border: Border.all(
-                  color: isSelected ? _white : _border,
+                  color: isSelected ? Colors.white : SocioTheme.creamBorder,
                   width: 2,
                 ),
               ),
               child: isSelected
-                  ? Icon(Icons.check_rounded, size: 13, color: _purple)
+                  ? const Icon(Icons.check_rounded, size: 13, color: SocioTheme.forestGreen)
                   : null,
             ),
           ],
@@ -637,8 +590,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
       decoration: BoxDecoration(
-        color: _background,
-        border: Border(top: BorderSide(color: _border.withOpacity(0.6))),
+        color: SocioTheme.creamBg,
+        border: Border(top: BorderSide(color: SocioTheme.creamBorder.withOpacity(0.6))),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -653,24 +606,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                 width: double.infinity,
                 height: 56,
                 decoration: BoxDecoration(
-                  gradient: _canProceed
-                      ? const LinearGradient(
-                          colors: [Color(0xFF164E30), _purple],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        )
-                      : null,
-                  color: _canProceed ? null : _border,
+                  color: _canProceed ? SocioTheme.forestGreen : SocioTheme.creamBorder,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: _canProceed
-                      ? [
-                          BoxShadow(
-                            color: _purple.withOpacity(0.38),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ]
-                      : null,
+                  boxShadow: _canProceed ? SocioTheme.shadowGreen : null,
                 ),
                 child: Center(
                   child: _isLoading
@@ -692,7 +630,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                               style: GoogleFonts.dmSans(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: _canProceed ? _white : _textSecondary,
+                                color: _canProceed ? Colors.white : SocioTheme.mutedText,
                                 letterSpacing: 0.3,
                               ),
                             ),
@@ -701,7 +639,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                               isLastStep
                                   ? Icons.rocket_launch_rounded
                                   : Icons.arrow_forward_rounded,
-                              color: _canProceed ? _white : _textSecondary,
+                              color: _canProceed ? Colors.white : SocioTheme.mutedText,
                               size: 18,
                             ),
                           ],
@@ -716,7 +654,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
               'Takes about 30 seconds ✦',
               style: GoogleFonts.dmSans(
                 fontSize: 13,
-                color: _textSecondary.withOpacity(0.7),
+                color: SocioTheme.mutedText.withOpacity(0.7),
               ),
             ),
           ],

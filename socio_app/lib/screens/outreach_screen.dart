@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../app_theme.dart';
 import '../providers/outreach_provider.dart';
 import '../services/outreach_service.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// OutreachScreen — Cold Outreach Engine
-// Input: target name + company + role (optional) + traction + ask
-// Output: tabbed results — Cold Email · Call Script · Follow-up Sequence
-// ─────────────────────────────────────────────────────────────────────────────
-
+/// Socio Outreach Screen — Cold Outreach Engine.
+/// Upgrades: Warm editorial luxury layout, custom fields, responsive tabs, 
+/// copy callbacks, and Tavily-researched outreach rendering.
 class OutreachScreen extends ConsumerStatefulWidget {
   const OutreachScreen({super.key});
 
@@ -27,19 +25,6 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
   final _tractionCtrl = TextEditingController();
   final _askCtrl = TextEditingController();
   late final TabController _tabController;
-
-  // ── Design tokens ─────────────────────────────────────────────────────────
-  static const _purple = Color(0xFF0B3A22);
-  static const _purpleLight = Color(0xFFE5EFE9);
-  static const _purpleMid = Color(0xFF4F8F6F);
-  static const _background = Color(0xFFF7F4EB);
-  static const _white = Color(0xFFFFFFFF);
-  static const _textPrimary = Color(0xFF15291C);
-  static const _textSecondary = Color(0xFF5E7063);
-  static const _border = Color(0xFFEBE5D8);
-  static const _success = Color(0xFF059669);
-  static const _warning = Color(0xFFD97706);
-
 
   bool _showAdvanced = false;
 
@@ -101,11 +86,11 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$label copied ✓',
-            style: GoogleFonts.dmSans(color: _white)),
-        backgroundColor: _purple,
+            style: GoogleFonts.dmSans(color: Colors.white)),
+        backgroundColor: SocioTheme.forestGreen,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: const RoundedRectangleBorder(borderRadius: SocioTheme.radiusMd),
       ),
     );
   }
@@ -121,7 +106,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
         statusBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: _background,
+        backgroundColor: SocioTheme.creamBg,
         body: SafeArea(
           child: CustomScrollView(
             slivers: [
@@ -133,7 +118,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
                 SliverToBoxAdapter(child: _buildLoadingCard()),
               if (state.hasResult)
                 SliverToBoxAdapter(child: _buildResultsCard(state.result!)),
-              const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              const SliverToBoxAdapter(child: SizedBox(height: 80)), // bottom safe padding for floating navbar
             ],
           ),
         ),
@@ -151,21 +136,11 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF8B5CF6), _purple],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(13),
-              boxShadow: [
-                BoxShadow(
-                  color: _purple.withOpacity(0.28),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              color: SocioTheme.forestGreen,
+              borderRadius: SocioTheme.radiusSm,
+              boxShadow: SocioTheme.shadowGreen,
             ),
-            child: const Icon(Icons.send_rounded, color: _white, size: 18),
+            child: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
           ),
           const SizedBox(width: 12),
           Column(
@@ -173,16 +148,16 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
             children: [
               Text(
                 'Cold Outreach',
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: _textPrimary,
+                  color: SocioTheme.slateText,
                 ),
               ),
               Text(
                 'AI-researched, personalised in seconds',
                 style: GoogleFonts.dmSans(
-                    fontSize: 12, color: _textSecondary),
+                    fontSize: 12, color: SocioTheme.mutedText),
               ),
             ],
           ),
@@ -196,18 +171,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Container(
-        decoration: BoxDecoration(
-          color: _white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _border),
-          boxShadow: [
-            BoxShadow(
-              color: _textPrimary.withOpacity(0.05),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
+        decoration: socioCardDecoration(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -254,7 +218,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
                       _showAdvanced ? 'Hide details' : 'Add more context',
                       style: GoogleFonts.dmSans(
                         fontSize: 13,
-                        color: _purple,
+                        color: SocioTheme.forestGreen,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -263,7 +227,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
                       turns: _showAdvanced ? 0.5 : 0,
                       duration: const Duration(milliseconds: 200),
                       child: const Icon(Icons.keyboard_arrow_down_rounded,
-                          color: _purple, size: 18),
+                          color: SocioTheme.forestGreen, size: 18),
                     ),
                   ],
                 ),
@@ -305,7 +269,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
               secondChild: const SizedBox.shrink(),
             ),
 
-            // Divider + Generate button
+            //Divider + Generate button
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: _buildGenerateButton(state),
@@ -319,14 +283,14 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
   Widget _buildSectionLabel(String label, IconData icon) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: _textSecondary),
+        Icon(icon, size: 14, color: SocioTheme.mutedText),
         const SizedBox(width: 6),
         Text(
           label.toUpperCase(),
           style: GoogleFonts.dmSans(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: _textSecondary,
+            color: SocioTheme.mutedText,
             letterSpacing: 1.2,
           ),
         ),
@@ -341,21 +305,24 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: _background,
+        color: SocioTheme.creamBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
+        border: Border.all(color: SocioTheme.creamBorder),
       ),
       child: TextField(
         controller: controller,
-        style: GoogleFonts.dmSans(fontSize: 14, color: _textPrimary),
+        style: GoogleFonts.dmSans(fontSize: 14, color: SocioTheme.slateText),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: GoogleFonts.dmSans(
-              fontSize: 14, color: _textSecondary.withOpacity(0.6)),
-          prefixIcon: Icon(icon, size: 16, color: _textSecondary),
+              fontSize: 14, color: SocioTheme.placeholderText),
+          prefixIcon: Icon(icon, size: 16, color: SocioTheme.mutedText),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          filled: false,
         ),
       ),
     );
@@ -372,37 +339,22 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
           width: double.infinity,
           height: 52,
           decoration: BoxDecoration(
-            gradient: canGenerate
-                ? const LinearGradient(
-                    colors: [Color(0xFF7C3AED), _purple],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            color: canGenerate ? null : _border,
+            color: canGenerate ? SocioTheme.forestGreen : SocioTheme.creamBorder,
             borderRadius: BorderRadius.circular(14),
-            boxShadow: canGenerate
-                ? [
-                    BoxShadow(
-                      color: _purple.withOpacity(0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
+            boxShadow: canGenerate ? SocioTheme.shadowGreen : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.auto_awesome_rounded,
-                  color: _white, size: 17),
+                  color: Colors.white, size: 17),
               const SizedBox(width: 8),
               Text(
                 'Generate Outreach',
                 style: GoogleFonts.dmSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: canGenerate ? _white : _textSecondary,
+                  color: canGenerate ? Colors.white : SocioTheme.mutedText,
                   letterSpacing: 0.3,
                 ),
               ),
@@ -419,35 +371,31 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: Container(
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: _white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _purpleLight),
-        ),
+        decoration: socioCardDecoration(),
         child: Column(
           children: [
             const SizedBox(
               width: 36,
               height: 36,
               child: CircularProgressIndicator(
-                color: _purple,
+                color: SocioTheme.forestGreen,
                 strokeWidth: 2.5,
               ),
             ),
             const SizedBox(height: 16),
             Text(
               'Researching target…',
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.outfit(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
-                  color: _textPrimary),
+                  color: SocioTheme.slateText),
             ),
             const SizedBox(height: 6),
             Text(
               'Tavily is scanning the web · Gemini is writing your pitch',
               textAlign: TextAlign.center,
               style: GoogleFonts.dmSans(
-                  fontSize: 13, color: _textSecondary, height: 1.5),
+                  fontSize: 13, color: SocioTheme.mutedText, height: 1.5),
             ),
           ],
         ),
@@ -469,14 +417,14 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
         child: Row(
           children: [
             const Icon(Icons.error_outline_rounded,
-                color: Color(0xFFDC2626), size: 20),
+                color: SocioTheme.rose, size: 20),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 error,
                 style: GoogleFonts.dmSans(
                     fontSize: 13,
-                    color: const Color(0xFFDC2626),
+                    color: SocioTheme.rose,
                     height: 1.4),
               ),
             ),
@@ -491,18 +439,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: Container(
-        decoration: BoxDecoration(
-          color: _white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _border),
-          boxShadow: [
-            BoxShadow(
-              color: _textPrimary.withOpacity(0.05),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
+        decoration: socioCardDecoration(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -539,12 +476,12 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: _purpleLight.withOpacity(0.5),
+        color: SocioTheme.forestGreen.withOpacity(0.06),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.travel_explore_rounded, color: _purple, size: 15),
+          const Icon(Icons.travel_explore_rounded, color: SocioTheme.forestGreen, size: 15),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -552,7 +489,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.dmSans(
-                  fontSize: 12, color: _purple.withOpacity(0.85), height: 1.4),
+                  fontSize: 12, color: SocioTheme.forestGreenLt, height: 1.4),
             ),
           ),
         ],
@@ -562,8 +499,8 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
 
   Widget _buildTabBar() {
     return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: _border)),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: SocioTheme.creamBorder)),
       ),
       child: TabBar(
         controller: _tabController,
@@ -571,9 +508,9 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
             fontSize: 13, fontWeight: FontWeight.w700),
         unselectedLabelStyle:
             GoogleFonts.dmSans(fontSize: 13, fontWeight: FontWeight.w500),
-        labelColor: _purple,
-        unselectedLabelColor: _textSecondary,
-        indicatorColor: _purple,
+        labelColor: SocioTheme.forestGreen,
+        unselectedLabelColor: SocioTheme.mutedText,
+        indicatorColor: SocioTheme.forestGreen,
         indicatorWeight: 2.5,
         tabs: const [
           Tab(text: '✉️  Email'),
@@ -595,9 +532,9 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
             padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: _background,
+              color: SocioTheme.creamBg,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _border),
+              border: Border.all(color: SocioTheme.creamBorder),
             ),
             child: Row(
               children: [
@@ -606,14 +543,14 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
                   style: GoogleFonts.dmSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: _textSecondary),
+                      color: SocioTheme.mutedText),
                 ),
                 Expanded(
                   child: Text(
                     result.coldEmailSubject,
                     style: GoogleFonts.dmSans(
                         fontSize: 13,
-                        color: _textPrimary,
+                        color: SocioTheme.slateText,
                         fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -645,14 +582,14 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: _warning.withOpacity(0.12),
+                  color: SocioTheme.amber.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(
                   '⏱  ~2 min call',
                   style: GoogleFonts.dmSans(
                       fontSize: 12,
-                      color: _warning,
+                      color: SocioTheme.amber,
                       fontWeight: FontWeight.w600),
                 ),
               ),
@@ -673,7 +610,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
     if (result.followUps.isEmpty) {
       return Center(
         child: Text('No follow-ups generated.',
-            style: GoogleFonts.dmSans(color: _textSecondary)),
+            style: GoogleFonts.dmSans(color: SocioTheme.mutedText)),
       );
     }
 
@@ -686,13 +623,13 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
             padding: const EdgeInsets.only(bottom: 14),
             child: Container(
               decoration: BoxDecoration(
-                color: _white,
+                color: SocioTheme.creamCard,
                 borderRadius: BorderRadius.circular(14),
                 border: Border(
                   left: BorderSide(color: colors.$1, width: 3),
-                  top: BorderSide(color: _border),
-                  right: BorderSide(color: _border),
-                  bottom: BorderSide(color: _border),
+                  top: const BorderSide(color: SocioTheme.creamBorder),
+                  right: const BorderSide(color: SocioTheme.creamBorder),
+                  bottom: const BorderSide(color: SocioTheme.creamBorder),
                 ),
               ),
               child: Column(
@@ -725,7 +662,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
                             style: GoogleFonts.dmSans(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: _textPrimary,
+                              color: SocioTheme.slateText,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -734,14 +671,14 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
                       ],
                     ),
                   ),
-                  Divider(color: _border, height: 1),
+                  const Divider(color: SocioTheme.creamBorder, height: 1),
                   Padding(
                     padding: const EdgeInsets.all(14),
                     child: Text(
                       fu.body,
                       style: GoogleFonts.dmSans(
                         fontSize: 13,
-                        color: _textPrimary,
+                        color: SocioTheme.slateText,
                         height: 1.6,
                       ),
                     ),
@@ -763,9 +700,9 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _background,
+        color: SocioTheme.creamBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _border),
+        border: Border.all(color: SocioTheme.creamBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -776,12 +713,12 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
               content,
               style: GoogleFonts.dmSans(
                 fontSize: 14,
-                color: _textPrimary,
+                color: SocioTheme.slateText,
                 height: 1.65,
               ),
             ),
           ),
-          Divider(color: _border, height: 1),
+          const Divider(color: SocioTheme.creamBorder, height: 1),
           GestureDetector(
             onTap: () => _copyToClipboard(content, copyLabel),
             child: Container(
@@ -790,13 +727,13 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.copy_rounded, size: 14, color: _purple),
+                  const Icon(Icons.copy_rounded, size: 14, color: SocioTheme.forestGreen),
                   const SizedBox(width: 6),
                   Text(
                     'Copy $copyLabel',
                     style: GoogleFonts.dmSans(
                       fontSize: 13,
-                      color: _purple,
+                      color: SocioTheme.forestGreen,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -812,17 +749,17 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
   Widget _copyIcon(String text, String label) {
     return GestureDetector(
       onTap: () => _copyToClipboard(text, label),
-      child: Padding(
-        padding: const EdgeInsets.only(left: 8),
-        child: Icon(Icons.copy_rounded, size: 15, color: _purple),
+      child: const Padding(
+        padding: EdgeInsets.only(left: 8),
+        child: Icon(Icons.copy_rounded, size: 15, color: SocioTheme.forestGreen),
       ),
     );
   }
 
   // ── Follow-up day colors ──────────────────────────────────────────────────
   (Color, Color) _followUpColor(int day) {
-    if (day <= 1) return (_success, const Color(0xFFDCFCE7));
-    if (day <= 3) return (_warning, const Color(0xFFFEF3C7));
-    return (const Color(0xFF6D28D9), _purpleLight);
+    if (day <= 1) return (SocioTheme.emeraldAccent, const Color(0xFFDCFCE7));
+    if (day <= 3) return (SocioTheme.amber, const Color(0xFFFEF3C7));
+    return (SocioTheme.violet, SocioTheme.violetSurface);
   }
 }

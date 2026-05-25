@@ -8,35 +8,35 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../app_theme.dart';
 import '../models/investor_model.dart';
 import '../providers/pipeline_provider.dart';
 import '../providers/startup_provider.dart';
 import '../services/firestore_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Design tokens (matching Socio design system)
+// Design tokens mapped to Socio Design System
 // ─────────────────────────────────────────────────────────────────────────────
-const _purple = Color(0xFF0B3A22);
-const _purpleLight = Color(0xFFE5EFE9);
-const _bg = Color(0xFFF7F4EB);
-const _text = Color(0xFF15291C);
-const _textMuted = Color(0xFF5E7063);
-const _success = Color(0xFF059669);
-const _warning = Color(0xFFD97706);
-const _error = Color(0xFFDC2626);
-const _border = Color(0xFFEBE5D8);
-
+Color get _purple => SocioTheme.forestGreen;
+Color get _purpleLight => SocioTheme.forestGreen.withOpacity(0.08);
+Color get _bg => SocioTheme.creamBg;
+Color get _text => SocioTheme.slateText;
+Color get _textMuted => SocioTheme.mutedText;
+Color get _success => SocioTheme.emeraldAccent;
+Color get _warning => SocioTheme.amber;
+Color get _error => SocioTheme.rose;
+Color get _border => SocioTheme.creamBorder;
 
 Color _statusColor(InvestorStatus s) {
   switch (s) {
     case InvestorStatus.identified:   return const Color(0xFF64748B);
-    case InvestorStatus.contacted:    return const Color(0xFF6D28D9);
+    case InvestorStatus.contacted:    return SocioTheme.violet;
     case InvestorStatus.responded:    return const Color(0xFF2563EB);
     case InvestorStatus.meeting:      return const Color(0xFF0891B2);
-    case InvestorStatus.dueDiligence: return const Color(0xFFD97706);
-    case InvestorStatus.termSheet:    return const Color(0xFF7C3AED);
-    case InvestorStatus.closed:       return const Color(0xFF059669);
-    case InvestorStatus.passed:       return const Color(0xFFDC2626);
+    case InvestorStatus.dueDiligence: return SocioTheme.amber;
+    case InvestorStatus.termSheet:    return SocioTheme.violetLight;
+    case InvestorStatus.closed:       return SocioTheme.emeraldAccent;
+    case InvestorStatus.passed:       return SocioTheme.rose;
     case InvestorStatus.ghosted:      return const Color(0xFF94A3B8);
   }
 }
@@ -98,12 +98,12 @@ class _PipelineScreenState extends ConsumerState<PipelineScreen>
             // Main content
             Expanded(
               child: pipelineAsync.when(
-                loading: () => const Center(
+                loading: () => Center(
                   child: CircularProgressIndicator(color: _purple),
                 ),
                 error: (e, _) => Center(
                   child: Text('Error: $e',
-                      style: const TextStyle(color: _error)),
+                      style: TextStyle(color: _error)),
                 ),
                 data: (_) => _isKanban
                     ? const _KanbanBoard()
@@ -177,7 +177,7 @@ class _Header extends StatelessWidget {
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.tune_rounded, color: _textMuted),
+            icon: Icon(Icons.tune_rounded, color: _textMuted),
             tooltip: 'Sort & filter',
           ),
         ],
@@ -207,7 +207,7 @@ class _OverdueBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.schedule_rounded, color: _warning, size: 18),
+          Icon(Icons.schedule_rounded, color: _warning, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -398,7 +398,7 @@ class _InvestorList extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.people_outline_rounded,
+            Icon(Icons.people_outline_rounded,
                 size: 48, color: _border),
             const SizedBox(height: 12),
             Text('No investors here yet',
@@ -519,24 +519,8 @@ class _InvestorCard extends ConsumerWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                // Warmth stars
-                Row(
-                  children: List.generate(
-                    5,
-                    (i) => Icon(
-                      i < investor.warmthScore
-                          ? Icons.star_rounded
-                          : Icons.star_outline_rounded,
-                      size: 14,
-                      color: i < investor.warmthScore
-                          ? _warning
-                          : _border,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
                 if (investor.checkSize.isNotEmpty) ...[
-                  const Icon(Icons.currency_rupee_rounded,
+                  Icon(Icons.currency_rupee_rounded,
                       size: 13, color: _textMuted),
                   Text(investor.checkSize,
                       style: GoogleFonts.dmSans(
@@ -1026,7 +1010,7 @@ class _InvestorDetailSheetState
                   // AI Follow-up result
                   if (_generatingFollowUp) ...[
                     const SizedBox(height: 24),
-                    const Center(
+                    Center(
                       child: CircularProgressIndicator(color: _purple),
                     ),
                     const SizedBox(height: 8),
@@ -1066,7 +1050,7 @@ class _InvestorDetailSheetState
                               mainAxisAlignment:
                                   MainAxisAlignment.end,
                               children: [
-                                const Icon(Icons.copy_rounded,
+                                Icon(Icons.copy_rounded,
                                     size: 14, color: _purple),
                                 const SizedBox(width: 4),
                                 Text('Copy',
@@ -1386,7 +1370,7 @@ class _AddInvestorSheetState extends ConsumerState<_AddInvestorSheet> {
                     const Spacer(),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close_rounded, color: _textMuted),
+                      icon: Icon(Icons.close_rounded, color: _textMuted),
                     ),
                   ],
                 ),
@@ -1584,16 +1568,16 @@ class _FormField extends StatelessWidget {
               fillColor: _bg,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _border),
+                borderSide: BorderSide(color: _border),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _border),
+                borderSide: BorderSide(color: _border),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide:
-                    const BorderSide(color: _purple, width: 1.5),
+                    BorderSide(color: _purple, width: 1.5),
               ),
             ),
           ),

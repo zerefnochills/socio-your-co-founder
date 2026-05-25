@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional, List
 import httpx
 import os
@@ -9,7 +9,10 @@ import json
 import asyncio
 from dotenv import load_dotenv
 
-load_dotenv()
+# ── Robust Path Resolution ─────────────────────────────────────
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+dotenv_path = os.path.join(BASE_DIR, ".env")
+load_dotenv(dotenv_path)
 
 # ── App init ─────────────────────────────────────────────────
 app = FastAPI(
@@ -40,7 +43,7 @@ TAVILY_URL = "https://api.tavily.com/search"
 
 # ── Prompt loader ─────────────────────────────────────────────
 def load_prompt(filename: str) -> str:
-    path = os.path.join("prompts", filename)
+    path = os.path.join(BASE_DIR, "prompts", filename)
     try:
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
@@ -49,6 +52,33 @@ def load_prompt(filename: str) -> str:
             status_code=500,
             detail=f"Prompt file not found: {filename}"
         )
+
+# ── JSON Extraction Helper ────────────────────────────────────
+def extract_json(text: str) -> dict:
+    """
+    Robustly extracts and parses a JSON object from text.
+    Handles potential markdown fencing (e.g. ```json ... ```) or conversational preambles.
+    """
+    text = text.strip()
+    
+    # 1. Try finding boundaries
+    start = text.find('{')
+    end = text.rfind('}')
+    
+    if start != -1 and end != -1 and end > start:
+        json_str = text[start:end+1]
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
+            
+    # 2. Try removing backticks manually
+    clean = text.replace("```json", "").replace("```", "").strip()
+    try:
+        return json.loads(clean)
+    except json.JSONDecodeError as e:
+        print(f"Failed to parse JSON. Raw text was:\n{text}")
+        raise e
 
 # ============================================================
 # REQUEST MODELS
@@ -67,17 +97,52 @@ class MessageItem(BaseModel):
 
 class ChatRequest(BaseModel):
     message:       str
-    context:       StartupContext
+    context:       Optional[StartupContext] = None
     chat_history:  List[MessageItem] = []
     founder_name:  str = "Founder"
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_keys(cls, data):
+        if not isinstance(data, dict):
+            return data
+        
+        # 1. Normalize history vs chat_history
+        if "history" in data and not data.get("chat_history"):
+            data["chat_history"] = data.pop("history")
+            
+        # 2. Normalize context nested vs flat
+        if "context" not in data or data["context"] is None:
+            ctx = {}
+            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count"]:
+                if k in data:
+                    ctx[k] = data.get(k)
+            data["context"] = ctx
+            
+        return data
 
 class OutreachRequest(BaseModel):
     target_name:    str
     target_company: str
     target_role:    str = "Investor"
-    context:        StartupContext
+    context:        Optional[StartupContext] = None
     ask:            str = "a 15-minute intro call"
     traction:       str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_keys(cls, data):
+        if not isinstance(data, dict):
+            return data
+        
+        if "context" not in data or data["context"] is None:
+            ctx = {}
+            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count"]:
+                if k in data:
+                    ctx[k] = data.get(k)
+            data["context"] = ctx
+            
+        return data
 
 class InvestorFollowupRequest(BaseModel):
     investor_name:      str
@@ -85,12 +150,42 @@ class InvestorFollowupRequest(BaseModel):
     meeting_notes:      str = ""
     days_since_contact: int = 0
     status:             str = "follow-up"
-    context:            StartupContext
+    context:            Optional[StartupContext] = None
     traction:           str = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_keys(cls, data):
+        if not isinstance(data, dict):
+            return data
+        
+        if "context" not in data or data["context"] is None:
+            ctx = {}
+            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count"]:
+                if k in data:
+                    ctx[k] = data.get(k)
+            data["context"] = ctx
+            
+        return data
 
 class StressTestRequest(BaseModel):
     idea:    str
-    context: StartupContext
+    context: Optional[StartupContext] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_keys(cls, data):
+        if not isinstance(data, dict):
+            return data
+        
+        if "context" not in data or data["context"] is None:
+            ctx = {}
+            for k in ["startup_name", "startup_idea", "startup_stage", "mrr", "user_count"]:
+                if k in data:
+                    ctx[k] = data.get(k)
+            data["context"] = ctx
+            
+        return data
 
 # ============================================================
 # CORE AI FUNCTIONS
@@ -163,8 +258,7 @@ async def classify_mood(
                 }
             )
             text = res.json()["choices"][0]["message"]["content"]
-            clean = text.strip().replace("```json", "").replace("```", "").strip()
-            return json.loads(clean)
+            return extract_json(text)
     except Exception as e:
         print(f"Mood classifier failed: {e}")
         # Safe defaults — never break the main chat flow
@@ -269,6 +363,11 @@ async def research_target(name: str, company: str) -> str:
 async def health():
     return {
         "status": "Socio backend is running",
+        "keys_configured": {
+            "gemini": bool(GEMINI_API_KEY),
+            "groq": bool(GROQ_API_KEY),
+            "tavily": bool(TAVILY_API_KEY)
+        },
         "team": "Doppelganger",
         "hackathon": "QuantCraft 2026"
     }
@@ -297,8 +396,28 @@ async def chat(request: ChatRequest):
 
     # Step 3: Stream response
     async def generate():
-        # First chunk — send mood data to Flutter
-        yield f"data: {json.dumps({'type': 'mood', 'data': mood})}\n\n"
+        # Align mood payload with the nested structure expected by the Flutter frontend (MoodData.fromJson)
+        formatted_mood = {
+            "emotion": mood.get("emotion", "neutral"),
+            "score": mood.get("mood_score", mood.get("score", 0.7)),
+            "needs_sos": mood.get("needs_sos", False),
+            "persona_weights": {
+                "skeptic": mood.get("skeptic_weight", mood.get("skeptic", 0.33)),
+                "hustler": mood.get("hustler_weight", mood.get("hustler", 0.33)),
+                "strategist": mood.get("strategist_weight", mood.get("strategist", 0.34))
+            },
+            # Keep flat keys for compatibility with backend or other versions
+            "mood_score": mood.get("mood_score", 0.7),
+            "skeptic_weight": mood.get("skeptic_weight", 0.33),
+            "hustler_weight": mood.get("hustler_weight", 0.33),
+            "strategist_weight": mood.get("strategist_weight", 0.34),
+            "urgency": mood.get("urgency", "low"),
+            "intent": mood.get("intent", "general"),
+            "reasoning": mood.get("reasoning", "")
+        }
+
+        # First chunk — send formatted mood data to Flutter
+        yield f"data: {json.dumps({'type': 'mood', 'data': formatted_mood})}\n\n"
 
         full_response = ""
         gemini_failed = False
@@ -363,17 +482,15 @@ async def generate_outreach(request: OutreachRequest):
             max_tokens=800,
             temperature=0.75
         )
-        clean = result.strip().replace("```json", "").replace("```", "").strip()
-        parsed = json.loads(clean)
+        parsed = extract_json(result)
         parsed["research_used"] = research[:200]  # include snippet for transparency
         return parsed
-    except json.JSONDecodeError:
+    except Exception as e:
+        print(f"Outreach generation failed: {e}")
         raise HTTPException(
             status_code=500,
-            detail="Failed to parse outreach response. Try again."
+            detail=f"Failed to generate outreach: {str(e)}"
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ── /investor-followup — personalised follow-up message ──────
@@ -402,10 +519,13 @@ async def investor_followup(request: InvestorFollowupRequest):
             max_tokens=400,
             temperature=0.7
         )
-        clean = result.strip().replace("```json", "").replace("```", "").strip()
-        return json.loads(clean)
+        return extract_json(result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Investor follow-up failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate follow-up: {str(e)}"
+        )
 
 
 # ── /stress-test — idea stress test with scorecard ───────────

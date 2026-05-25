@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../app_theme.dart';
 
+/// Socio Tracker Screen — refined premium dashboard.
+/// Aesthetic: Warm editorial luxury. Premium metrics and VC checklist.
 class TrackerScreen extends ConsumerStatefulWidget {
   const TrackerScreen({super.key});
 
@@ -32,27 +37,42 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Update Startup Metrics', style: TextStyle(fontWeight: FontWeight.bold)),
+          backgroundColor: SocioTheme.creamBg,
+          shape: const RoundedRectangleBorder(borderRadius: SocioTheme.radiusMd),
+          title: Text(
+            'Update Startup Metrics',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.bold,
+              color: SocioTheme.slateText,
+              fontSize: 18,
+            ),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: userController,
                 keyboardType: TextInputType.number,
+                style: GoogleFonts.dmSans(color: SocioTheme.slateText),
                 decoration: const InputDecoration(labelText: 'Total Active Users'),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               TextField(
                 controller: mrrController,
                 keyboardType: TextInputType.number,
+                style: GoogleFonts.dmSans(color: SocioTheme.slateText),
                 decoration: const InputDecoration(labelText: 'Monthly Recurring Revenue (Rs.)'),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: selectedStage,
+                dropdownColor: SocioTheme.creamBg,
+                style: GoogleFonts.dmSans(color: SocioTheme.slateText),
                 items: ['Idea', 'MVP', 'Pre-Seed', 'Seed', 'Series A']
-                    .map((val) => DropdownMenuItem(value: val, child: Text(val)))
+                    .map((val) => DropdownMenuItem(
+                          value: val,
+                          child: Text(val, style: GoogleFonts.dmSans(color: SocioTheme.slateText)),
+                        ))
                     .toList(),
                 onChanged: (val) {
                   if (val != null) selectedStage = val;
@@ -64,7 +84,10 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.dmSans(color: SocioTheme.mutedText, fontWeight: FontWeight.w600),
+              ),
             ),
             ElevatedButton(
               onPressed: () {
@@ -74,15 +97,15 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
                   stage = selectedStage;
                 });
                 Navigator.pop(context);
+                HapticFeedback.lightImpact();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Metrics updated! Socio AI is calibrating... 📊'),
-                    backgroundColor: Color(0xFF6D28D9),
+                    backgroundColor: SocioTheme.forestGreen,
                   ),
                 );
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6D28D9)),
-              child: const Text('Update', style: TextStyle(color: Colors.white)),
+              child: const Text('Update'),
             ),
           ],
         );
@@ -93,13 +116,16 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7FF),
+      backgroundColor: SocioTheme.creamBg,
       appBar: AppBar(
-        title: const Text('Startup Metrics & Tasks', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-        backgroundColor: Colors.white,
+        title: Text(
+          'Startup Metrics & Tasks',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w600, color: SocioTheme.slateText),
+        ),
+        backgroundColor: SocioTheme.creamBg,
         elevation: 0,
         centerTitle: false,
-        shape: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+        shape: const Border(bottom: BorderSide(color: SocioTheme.creamBorder)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -110,14 +136,25 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Core Dashboard',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: SocioTheme.slateText,
+                  ),
                 ),
                 TextButton.icon(
                   onPressed: _showMetricsEditDialog,
-                  icon: const Icon(Icons.edit_rounded, size: 16, color: Color(0xFF6D28D9)),
-                  label: const Text('Edit Metrics', style: TextStyle(color: Color(0xFF6D28D9), fontWeight: FontWeight.bold, fontSize: 13)),
+                  icon: const Icon(Icons.edit_rounded, size: 14, color: SocioTheme.forestGreen),
+                  label: Text(
+                    'Edit Metrics',
+                    style: GoogleFonts.dmSans(
+                      color: SocioTheme.forestGreen,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -126,9 +163,19 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
             // Metrics Cards Row
             Row(
               children: [
-                _buildMetricCard('Total Users', userCount.toString(), Icons.people_outline_rounded, const Color(0xFF6D28D9)),
+                _buildMetricCard(
+                  'Total Users',
+                  userCount.toString(),
+                  Icons.people_outline_rounded,
+                  SocioTheme.forestGreen,
+                ),
                 const SizedBox(width: 12),
-                _buildMetricCard('MRR', 'Rs.$mrr', Icons.payments_outlined, const Color(0xFF059669)),
+                _buildMetricCard(
+                  'MRR',
+                  'Rs.$mrr',
+                  Icons.payments_outlined,
+                  SocioTheme.violet,
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -136,38 +183,40 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
             
             const SizedBox(height: 24),
             // Tasks Title
-            const Text(
+            Text(
               'Co-Founder TODO List',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: SocioTheme.slateText,
+              ),
             ),
             const SizedBox(height: 12),
 
             // Todo List items
             Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
+              decoration: socioCardDecoration(),
               child: ListView.separated(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _todoItems.length,
-                separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                separatorBuilder: (context, index) => const Divider(height: 1, color: SocioTheme.creamBorder),
                 itemBuilder: (context, index) {
                   final item = _todoItems[index];
                   return CheckboxListTile(
                     value: item['done'],
-                    activeColor: const Color(0xFF6D28D9),
+                    activeColor: SocioTheme.forestGreen,
+                    checkboxShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                     title: Text(
                       item['task'],
-                      style: TextStyle(
+                      style: GoogleFonts.dmSans(
                         fontSize: 14,
-                        color: item['done'] ? const Color(0xFF94A3B8) : const Color(0xFF0F172A),
+                        color: item['done'] ? SocioTheme.placeholderText : SocioTheme.slateText,
                         decoration: item['done'] ? TextDecoration.lineThrough : null,
                       ),
                     ),
                     onChanged: (val) {
+                      HapticFeedback.selectionClick();
                       setState(() {
                         item['done'] = val;
                       });
@@ -176,6 +225,7 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
                 },
               ),
             ),
+            const SizedBox(height: 80), // bottom safe padding for floating navbar
           ],
         ),
       ),
@@ -186,35 +236,36 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.01),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+        decoration: socioCardDecoration(elevated: true),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: themeColor.withOpacity(0.08),
-              child: Icon(icon, color: themeColor, size: 20),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: themeColor.withOpacity(0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: themeColor, size: 18),
             ),
             const SizedBox(height: 16),
             Text(
               title,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+              style: GoogleFonts.dmSans(
+                fontSize: 12,
+                color: SocioTheme.mutedText,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              style: GoogleFonts.outfit(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: SocioTheme.slateText,
+              ),
             ),
           ],
         ),
@@ -226,29 +277,37 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+      decoration: socioCardDecoration(),
       child: Row(
         children: [
-          const CircleAvatar(
-            radius: 20,
-            backgroundColor: Color(0xFFEFF6FF),
-            child: Icon(Icons.rocket_rounded, color: Color(0xFF3B82F6)),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: SocioTheme.forestGreen.withOpacity(0.08),
+              borderRadius: SocioTheme.radiusSm,
+            ),
+            child: const Icon(Icons.rocket_rounded, color: SocioTheme.forestGreen, size: 20),
           ),
           const SizedBox(width: 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Current Stage',
-                style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                style: GoogleFonts.dmSans(
+                  fontSize: 12,
+                  color: SocioTheme.mutedText,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               Text(
                 stage,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: SocioTheme.slateText,
+                ),
               ),
             ],
           ),
@@ -256,13 +315,17 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.2)),
+              color: SocioTheme.violetSurface,
+              borderRadius: SocioTheme.radiusFull,
+              border: Border.all(color: SocioTheme.violet.withOpacity(0.2)),
             ),
-            child: const Text(
+            child: Text(
               'Calibrated Engine',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF3B82F6)),
+              style: GoogleFonts.dmSans(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: SocioTheme.violet,
+              ),
             ),
           ),
         ],
