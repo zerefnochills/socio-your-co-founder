@@ -31,7 +31,7 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
     HapticFeedback.mediumImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Daily standup check-in completed! Feel: $_selectedEmotion ($_selectedScore/5) 🧠'),
+        content: Text('Daily standup check-in completed! Feel: $_selectedEmotion ($_selectedScore/5)'),
         backgroundColor: SocioTheme.forestGreen,
       ),
     );
@@ -69,7 +69,7 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('SOS dynamic session loaded. Go to Chat tab! ⚡'),
+                    content: Text('SOS dynamic session loaded. Go to Chat tab!'),
                     backgroundColor: SocioTheme.rose,
                   ),
                 );
@@ -234,43 +234,57 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Mental Bandwidth Analytics',
-            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.bold, color: SocioTheme.slateText),
-          ),
-          const SizedBox(height: 16),
-          // Graphical bar representation
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: List.generate(7, (index) {
-              final score = _weeklyScores[index];
-              final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-              return Column(
-                children: [
-                  Container(
-                    height: score * 24,
-                    width: 24,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: score < 3.0
-                            ? [SocioTheme.rose, SocioTheme.rose.withOpacity(0.5)]
-                            : [SocioTheme.forestGreen, SocioTheme.forestGreenLt],
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
+            children: [
+              Text(
+                'Mental Bandwidth Analytics',
+                style: GoogleFonts.outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: SocioTheme.slateText,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: SocioTheme.forestGreen.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Live',
+                  style: GoogleFonts.dmSans(
+                    color: SocioTheme.forestGreen,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Graphical line chart representation
+          SizedBox(
+            height: 120,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: _WeeklyLineChartPainter(_weeklyScores),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // X-Axis Labels
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                .map((day) => Text(
+                      day,
+                      style: GoogleFonts.dmSans(
+                        fontSize: 12,
+                        color: SocioTheme.mutedText,
+                        fontWeight: FontWeight.w600,
                       ),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    days[index],
-                    style: GoogleFonts.dmSans(fontSize: 10, color: SocioTheme.mutedText, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              );
-            }),
+                    ))
+                .toList(),
           ),
         ],
       ),
@@ -335,4 +349,103 @@ class _MoodScreenState extends ConsumerState<MoodScreen> {
       ),
     );
   }
+}
+
+class _WeeklyLineChartPainter extends CustomPainter {
+  final List<double> scores;
+
+  _WeeklyLineChartPainter(this.scores);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (scores.isEmpty) return;
+
+    const maxScore = 5.0; // Max possible score is 5
+    const minScore = 0.0;
+
+    final paintLine = Paint()
+      ..color = SocioTheme.violet
+      ..strokeWidth = 3.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final paintArea = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          SocioTheme.violet.withOpacity(0.3),
+          SocioTheme.violet.withOpacity(0.0),
+        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      ).createShader(Rect.fromLTRB(0, 0, size.width, size.height))
+      ..style = PaintingStyle.fill;
+
+    // Grid lines (horizontal)
+    final gridPaint = Paint()
+      ..color = SocioTheme.creamBorder
+      ..strokeWidth = 1.0;
+
+    for (int i = 1; i <= 3; i++) {
+      final y = size.height * (i / 4);
+      _drawDashedLine(canvas, Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final pathLine = Path();
+    final pathArea = Path();
+
+    final stepX = size.width / (scores.length - 1);
+
+    for (int i = 0; i < scores.length; i++) {
+      // Normalizing score to Y coordinate (inverted since 0 is top)
+      final normalizedY = size.height - ((scores[i] - minScore) / (maxScore - minScore)) * size.height;
+      final x = i * stepX;
+
+      if (i == 0) {
+        pathLine.moveTo(x, normalizedY);
+        pathArea.moveTo(x, size.height);
+        pathArea.lineTo(x, normalizedY);
+      } else {
+        pathLine.lineTo(x, normalizedY);
+        pathArea.lineTo(x, normalizedY);
+      }
+    }
+
+    pathArea.lineTo(size.width, size.height);
+    pathArea.close();
+
+    canvas.drawPath(pathArea, paintArea);
+    canvas.drawPath(pathLine, paintLine);
+
+    // Draw dots
+    final dotPaint = Paint()
+      ..color = SocioTheme.violet
+      ..style = PaintingStyle.fill;
+      
+    final dotBorderPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    for (int i = 0; i < scores.length; i++) {
+      final normalizedY = size.height - ((scores[i] - minScore) / (maxScore - minScore)) * size.height;
+      final x = i * stepX;
+      canvas.drawCircle(Offset(x, normalizedY), 5.0, dotPaint);
+      canvas.drawCircle(Offset(x, normalizedY), 5.0, dotBorderPaint);
+    }
+  }
+
+  void _drawDashedLine(Canvas canvas, Offset p1, Offset p2, Paint paint) {
+    const int dashWidth = 4;
+    const int dashSpace = 4;
+    double startX = p1.dx;
+    final double y = p1.dy;
+    
+    while (startX < p2.dx) {
+      canvas.drawLine(Offset(startX, y), Offset(startX + dashWidth, y), paint);
+      startX += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

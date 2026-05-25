@@ -85,7 +85,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
     HapticFeedback.selectionClick();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$label copied ✓',
+        content: Text('$label copied',
             style: GoogleFonts.dmSans(color: Colors.white)),
         backgroundColor: SocioTheme.forestGreen,
         behavior: SnackBarBehavior.floating,
@@ -513,9 +513,9 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
         indicatorColor: SocioTheme.forestGreen,
         indicatorWeight: 2.5,
         tabs: const [
-          Tab(text: '✉️  Email'),
-          Tab(text: '📞  Call Script'),
-          Tab(text: '🔁  Follow-ups'),
+          Tab(text: 'Email'),
+          Tab(text: 'Call Script'),
+          Tab(text: 'Follow-ups'),
         ],
       ),
     );
@@ -586,7 +586,7 @@ class _OutreachScreenState extends ConsumerState<OutreachScreen>
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(
-                  '⏱  ~2 min call',
+                  '~2 min call',
                   style: GoogleFonts.dmSans(
                       fontSize: 12,
                       color: SocioTheme.amber,

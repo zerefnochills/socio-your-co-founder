@@ -1,12 +1,12 @@
 # CLAUDE.md — Socio Project Master Guide
-> This file is the primary developer manual for Socio. Keep it updated as features are built, refactored, or fixed.
-> Last updated: May 2026 | Version: 2.0 | Status: Frontend & Backend Complete + Critical Compile Errors Resolved + Pushed to GitHub ✅
+> Primary developer manual for Socio. Update this file after every feature build.
+> Last updated: May 26, 2026 | Version: 3.0 | Status: FCM Daily Standups Complete ✅
 
 ---
 
-## 🧠 What is Socio?
+## What is Socio?
 
-Socio is a high-fidelity mobile application (iOS + Android) that acts as a persistent, proactive **AI co-founder** for solo founders. Rather than a clinical utility tool, it is designed as an emotionally intelligent thinking partner. 
+Socio is a high-fidelity mobile application (iOS + Android) that acts as a persistent, proactive **AI co-founder** for solo founders. Rather than a clinical utility tool, it is designed as an emotionally intelligent thinking partner.
 
 At its core is the **Adaptive Persona Engine**: a dynamic system that analyzes the founder's emotional tone and intent in real-time, automatically blending three primary advisory personas:
 - **The Skeptic:** Plays devil's advocate, challenges assumptions, and points out risks.
@@ -17,54 +17,82 @@ At its core is the **Adaptive Persona Engine**: a dynamic system that analyzes t
 
 ---
 
-## 🏗 Project Structure
+## Project Owner
+
+- **Name:** Deepak Pandey
+- **Team:** Doppelganger
+- **Hackathon:** QuantCraft — Galgotias University
+- **Track:** AI / ML
+- **TRAE username:** Zeref228
+- **Round:** Offline 24-hour hackathon (top 50 of 250)
+- **GitHub Repo:** github.com/zerefnochills/socio-your-co-founder
+- **Active Branch:** `sub`
+
+---
+
+## Project Structure
 
 ```
 socio_ai/
-├── CLAUDE.md                   ← Master developer guide (this file)
-├── context.md                  ← Comprehensive product & development brain dump
-├── socio_app/                  ← Flutter Frontend (Android + iOS)
-│   ├── lib/
-│   │   ├── main.dart           ← Firebase init, ProviderScope, root auth-gated navigation
-│   │   ├── firebase_options.dart ← Auto-generated configuration for Firebase
-│   │   ├── models/
-│   │   │   ├── startup_model.dart  ← Startup configuration & serialization
-│   │   │   ├── message_model.dart  ← Chat messages (role, content, stream states)
-│   │   │   ├── investor_model.dart ← Investor pipeline details (stages, contacts) [UPDATED]
-│   │   │   └── outreach_model.dart ← Outreach target, email copy, followups
-│   │   ├── services/
-│   │   │   ├── auth_service.dart   ← Auth handler (Google, Anonymous/Mock fallback) [UPDATED]
-│   │   │   ├── firestore_service.dart ← Main Firestore database CRUD
-│   │   │   ├── chat_service.dart   ← SSE connection & response processor
-│   │   │   └── outreach_service.dart ← REST connector for cold email generator
-│   │   ├── providers/
-│   │   │   ├── auth_provider.dart  ← Auth riverpod providers & sign-in notifier
-│   │   │   ├── startup_provider.dart ← Startup config provider & API sync
-│   │   │   └── chat_provider.dart  ← Message lists, text-to-speech, recording states
-│   │   ├── screens/
-│   │   │   ├── sign_in_screen.dart ← Forest green themed login (Google + Offline mode)
-│   │   │   ├── onboarding_screen.dart ← 3-step founder setup flow
-│   │   │   ├── chat_screen.dart    ← Premium AI chat with SSE + persona weight visuals
-│   │   │   ├── pipeline_screen.dart ← Drag-and-drop Kanban investor pipeline
-│   │   │   ├── outreach_screen.dart ← AI cold email & outreach script writer
-│   │   │   ├── mood_screen.dart    ← Founder wellness hub with line graphs & SOS mode
-│   │   │   └── tracker_screen.dart  ← Standup metric tracking & goals
-│   │   ├── widgets/
-│   │   │   ├── chat_bubble.dart    ← Custom message bubbles
-│   │   │   ├── investor_card.dart  ← Individual investor board tile
-│   │   │   ├── mood_chart.dart     ← Muted weekly emotional trends line chart
-│   │   │   └── jordan_insight_card.dart ← Custom cards for proactive prompts
-│   │   └── navigation/
-│   │       └── main_navigation.dart ← Custom bottom nav shell (Chat, Pipeline, Outreach, Tracker, Mood)
-│   ├── pubspec.yaml            ← App dependencies (Riverpod, Dio, Hive, STT/TTS)
-│   └── android/app/google-services.json
+├── CLAUDE.md                     ← Master developer guide (this file)
+├── context.md                    ← Full product & architecture brain dump
 │
-└── socio_backend/              ← FastAPI Backend (Python)
-    ├── main.py                 ← Unified persona engine, stream logic, fallback cascade
-    ├── requirements.txt        ← Backend package requirements
-    ├── Procfile                ← Render deployment configuration
-    ├── .env                    ← API Keys (Gemini, Groq, Tavily) — NOT COMMITTED
-    └── prompts/                ← Prompt configurations with strict .format() variables
+├── socio_app/                    ← Flutter Frontend (Android + iOS)
+│   ├── lib/
+│   │   ├── main.dart             ← Firebase init, ProviderScope, FCM wiring, auth-gated routing
+│   │   ├── firebase_options.dart ← Auto-generated by FlutterFire CLI
+│   │   ├── app_theme.dart        ← SocioTheme color constants and card decoration helpers
+│   │   │
+│   │   ├── models/
+│   │   │   ├── startup_model.dart   ← StartupModel: toFirestore(), fromFirestore(), toApiContext()
+│   │   │   ├── message_model.dart   ← MessageModel: role enum, streaming flag, toApiMessage()
+│   │   │   ├── investor_model.dart  ← InvestorModel: copyWith(id:, createdAt:) — FIXED
+│   │   │   └── outreach_model.dart  ← OutreachModel: email, call_script, followups
+│   │   │
+│   │   ├── services/
+│   │   │   ├── auth_service.dart       ← Google Sign-In + MockUser offline fallback, isMockMode getter
+│   │   │   ├── firestore_service.dart  ← Full CRUD: startup, messages, mood_logs, investors, outreach
+│   │   │   ├── chat_service.dart       ← SSE stream parser, _kBaseUrl = localhost:8000 (adb reverse)
+│   │   │   ├── outreach_service.dart   ← REST connector for /outreach endpoint
+│   │   │   └── standup_service.dart    ← FCM + local notifications (9 AM / 9 PM), permission request ✅
+│   │   │
+│   │   ├── providers/
+│   │   │   ├── auth_provider.dart      ← authStateProvider (stream), SignInNotifier, founderNameProvider
+│   │   │   ├── startup_provider.dart   ← StartupNotifier, apiContextProvider
+│   │   │   └── chat_provider.dart      ← MessageList, TTS, STT, _hasInitialized gate lock
+│   │   │
+│   │   ├── screens/
+│   │   │   ├── sign_in_screen.dart         ← Forest green login: Google + Offline Mode button
+│   │   │   ├── onboarding_screen.dart      ← 3-step startup profile setup, notification permission request
+│   │   │   ├── chat_screen.dart            ← SSE chat, persona gauge, voice I/O, stress test trigger
+│   │   │   ├── pipeline_screen.dart        ← Drag-and-drop Kanban: 9 investor statuses
+│   │   │   ├── outreach_screen.dart        ← Cold email writer with Tavily research
+│   │   │   ├── tracker_screen.dart         ← Metrics, todo, standup card with test notification button
+│   │   │   ├── mood_screen.dart            ← Weekly mood graph, mood logger, SOS mode
+│   │   │   └── competitor_radar_screen.dart ← Live competitor intel via Tavily
+│   │   │
+│   │   ├── widgets/
+│   │   │   ├── chat_bubble.dart        ← Custom message bubbles
+│   │   │   ├── investor_card.dart      ← Kanban tile with warmth score
+│   │   │   ├── mood_chart.dart         ← Muted weekly line chart
+│   │   │   └── jordan_insight_card.dart ← Proactive AI insight cards
+│   │   │
+│   │   └── navigation/
+│   │       └── main_navigation.dart    ← Bottom nav shell + static tabNotifier for external tab switching
+│   │
+│   ├── pubspec.yaml              ← All dependencies
+│   └── android/
+│       └── app/
+│           ├── google-services.json       ← Downloaded from Firebase Console
+│           ├── build.gradle.kts           ← com.google.gms.google-services plugin, desugaring enabled
+│           └── src/main/kotlin/com/doppelganger/socio/MainActivity.kt
+│
+└── socio_backend/                ← FastAPI Backend (Python) — DEPLOYED ON RENDER ✅
+    ├── main.py                   ← All 5 endpoints + persona engine + LLM waterfall
+    ├── requirements.txt
+    ├── Procfile                  ← web: uvicorn main:app --host 0.0.0.0 --port $PORT
+    ├── .env                      ← GEMINI_API_KEY, GROQ_API_KEY, TAVILY_API_KEY (NEVER COMMIT)
+    └── prompts/
         ├── socio_system_prompt.txt
         ├── mood_classifier_prompt.txt
         ├── cold_email_prompt.txt
@@ -74,206 +102,314 @@ socio_ai/
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
-### Frontend (Mobile App)
-* **Framework:** Flutter (3.44.0) / Dart (3.x)
-* **State Management:** Riverpod (`flutter_riverpod ^2.5.1`) — clean, reactive, and fully predictable.
-* **Network Client:** Dio (`^5.7.0`) — handles connection, REST APIs, and Server-Sent Events (SSE) streaming.
-* **Local Storage:** Hive (`^2.2.3`) — local offline persistence.
-* **Voice Services:** `speech_to_text` (Voice input dictation) + `flutter_tts` (AI voice output).
-* **Typography:** `google_fonts` (Inter + Outfit fonts).
-* **Charts:** Muted custom Line Charts for mood trends.
+### Frontend
+| Layer | Technology | Version |
+|---|---|---|
+| Framework | Flutter | 3.44.0 |
+| Language | Dart | 3.x |
+| State Management | Riverpod | ^2.5.1 |
+| HTTP Client | Dio | ^5.7.0 |
+| Local Storage | Hive | ^2.2.3 |
+| Voice Input | speech_to_text | ^7.0.0 |
+| Voice Output | flutter_tts | ^4.1.0 |
+| Fonts | Google Fonts (Inter/Outfit/DM Sans) | ^6.2.1 |
+| Push Notifications | flutter_local_notifications | ^17.2.3 |
+| Timezones | timezone | ^0.9.4 |
 
-### Backend (Server)
-* **Framework:** FastAPI (Python) — extremely fast async request processing.
-* **AI Model Waterfall (Cascade):**
-  1. **Google Gemini 2.0 Flash (Primary):** High-speed streaming, massive 1M context window.
-  2. **Groq (Llama 3.3 70B - Secondary Fallback):** Ultra-fast speed backup if Gemini rate-limits.
-  3. **OpenRouter (Tertiary Fallback):** Ultimate backup.
-* **Web Search Engine:** Tavily API (performs live startup target research).
-* **Hosting:** Render (Free tier pre-configured).
+### Backend
+| Layer | Technology |
+|---|---|
+| Framework | FastAPI (Python) |
+| Hosting | Render (free tier) — LIVE |
+| Primary LLM | Google Gemini 2.0 Flash (streaming) |
+| Speed Fallback | Groq Llama 3.3 70B |
+| Tertiary Fallback | OpenRouter |
+| Web Search | Tavily API |
 
-### Database & Authentication (Firebase)
-* **Firebase Auth:** Handles secure authentication (Google Sign-In + local Guest / Anonymous mode fallback).
-* **Cloud Firestore:** Multi-tenant database storing real-time startup parameters, chat history, investors, and outreach campaigns. Features built-in offline caching and syncing.
-* **Firebase Storage:** Planned document vault for deck storage.
-* **FCM (Firebase Cloud Messaging):** Push notification system for daily schedules.
+### Firebase Services
+| Service | Purpose | Status |
+|---|---|---|
+| Firebase Auth | Google Sign-In + Anonymous/Mock fallback | ✅ Wired |
+| Cloud Firestore | Startup context, messages, pipeline, outreach, mood logs | ✅ Wired |
+| Firebase Storage | Document Vault (pitch decks) | Backlog |
+| Firebase Cloud Messaging | Push notifications for daily standups | ✅ Wired |
 
 ---
 
-## 🎨 Design System & UI Aesthetics
-
-Socio's visual identity draws heavy inspiration from **Pi AI (by Inflection)**. It avoids the cold, clinical feel of standard dashboards, using a warm, human, and modern aesthetic.
+## Design System
 
 ```
-Forest Green Accent: #0B3A22  (Used for premium banners, splash logos, and headers)
-Primary (Purple):    #6D28D9  (Brand primary, active states)
-Light Purple BG:     #EDE9FE  (Subtle alerts, background tags)
-Warm Cream BG:       #F7F4EB  (Primary background for screens and scaffolds)
-Text Primary:        #0F172A  (Deep slate for high readability)
-Text Muted:          #64748B  (Sage-tinged slate for labels)
-Border Color:        #E2E8F0  (Soft divider color)
+Forest Green:     #0B3A22  — Premium banners, splash, sign-in header
+Primary Purple:   #6D28D9  — Brand primary, active states (SocioTheme.violet)
+Light Purple BG:  #EDE9FE  — Alert backgrounds, tag chips
+Warm Cream BG:    #F7F4EB  — Screen scaffolds, card backgrounds (SocioTheme.creamBg)
+Text Primary:     #0F172A  — Deep slate (SocioTheme.slateText)
+Text Muted:       #64748B  — Labels, subtitles (SocioTheme.mutedText)
+Border:           #E2E8F0  — Dividers (SocioTheme.creamBorder)
+Success/Forest:   #059669  — Snackbars, positive states (SocioTheme.forestGreen)
+Warning:          #D97706  — Standup card accent
+Error:            #DC2626  — SOS mode, error states
 ```
 
-### Premium UI Enhancements Built:
-1. **Interactive Glassmorphic Tabs:** Beautiful floating indicators inside screens.
-2. **Fluid Drag-and-Drop Kanban Board:** The Investor Pipeline allows dragging cards between 9 statuses with smooth haptic feedback and animations.
-3. **Interactive Persona Gauge:** Located at the top of the chat screen, it visualizes the blended persona mix (e.g., Skeptic: 60%, Hustler: 25%, Strategist: 15%) as a colorful, dynamic status bar.
-4. **Soft Mood Line-Chart:** The wellness screen features a smooth, customized line graph reflecting daily mood scores over the past 7 days.
+**Font stack:** Inter (body), Outfit (headings), DM Sans (labels)
+**Border radius:** 16px cards, 12px buttons, 99px chips
+**Design reference:** Pi AI app (Mobbin) — warm, minimal, human
 
 ---
 
-## 🔌 API Endpoints (Fully Built & Tested ✅)
+## Backend API Endpoints (ALL BUILT + DEPLOYED ✅)
 
-### 1. `POST /chat`
-Streams real-time messages using Server-Sent Events (SSE). 
-* **Process:** Classifies emotional tone + intent (Groq, <200ms) → computes persona weights → injects weights into `socio_system_prompt.txt` → streams Gemini response.
-* **Stream Structure:**
-  - Chunk 1: `{type: "mood", data: {score: 0.8, emotion: "excited"}}` (used by Flutter to update live UI)
-  - Sub-chunks: `{type: "text", data: "..."}` (tokens streamed to chat box)
-  - Chunk End: `{type: "done"}`
+### POST /chat
+SSE stream. Flow: Groq mood classifier → persona-weighted system prompt → Gemini stream → Groq fallback.
+- First chunk: `{type: "mood", data: {score, emotion, persona_weights, needs_sos}}`
+- Text chunks: `{type: "text", data: "..."}`
+- Final: `{type: "done"}`
 
-### 2. `POST /outreach`
-Researches target companies and leads live via Tavily, then generates a complete outreach campaign including:
-* A highly personalized cold email copy
-* An interactive cold calling script
-* A 3-step follow-up timeline
+### POST /outreach
+Tavily researches target company → Groq generates cold email + call script + 3-part follow-up sequence. Returns JSON.
 
-### 3. `POST /investor-followup`
-Accepts meeting details, investor parameters, and time elapsed to generate a personalized follow-up email draft.
+### POST /investor-followup
+Accepts investor details + meeting notes + days since contact. Returns personalised follow-up email JSON with `send_as_reply` flag.
 
-### 4. `POST /stress-test`
-Generates a structured, intense critical stress test of the startup's core business model, exposing hidden risks and vulnerabilities.
+### POST /stress-test
+Full startup stress test. Returns structured free-text analysis via Groq.
 
-### 5. `GET /health`
-Validates backend system integrity and API key configurations.
+### GET /health
+Returns `{"status": "Socio backend is running", "team": "Doppelganger", "hackathon": "QuantCraft 2026"}`.
 
 ---
 
-## 🏗 Firestore Database Schema
+## Prompt Format Contract
+
+All prompts use Python `.format()`. Placeholders MUST match exactly or the app crashes.
+JSON inside prompt files MUST use `{{` and `}}` to escape braces.
+
+| Prompt File | Placeholders |
+|---|---|
+| `socio_system_prompt.txt` | `startup_name`, `startup_idea`, `startup_stage`, `mrr`, `user_count`, `last_updated`, `chat_history`, `founder_name`, `persona_weights` |
+| `mood_classifier_prompt.txt` | `message`, `recent_history` |
+| `cold_email_prompt.txt` | `target_name`, `target_company`, `target_role`, `tavily_research`, `startup_name`, `startup_idea`, `traction`, `ask` |
+| `investor_followup_prompt.txt` | `investor_name`, `investor_firm`, `meeting_notes`, `days_since_contact`, `status`, `startup_name`, `traction` |
+| `stress_test_prompt.txt` | `idea`, `context` |
+
+---
+
+## Firestore Data Structure
 
 ```
-users/ {uid}
-  ├── name: String
-  ├── email: String
-  ├── created_at: Timestamp
-  │
-  └── startups/ {startup_id}
-        ├── name: String
-        ├── idea: String
-        ├── stage: String (e.g., "Seed", "Idea Stage")
-        ├── mrr: String
-        ├── user_count: String
-        ├── updated_at: Timestamp
-        │
-        ├── messages/ {message_id}
-        │     ├── role: String ("user" | "socio")
-        │     ├── content: String
-        │     ├── mood_score: Double
-        │     └── timestamp: Timestamp
-        │
-        ├── investors/ {investor_id}
-        │     ├── name: String
-        │     ├── firm: String
-        │     ├── status: String (InvestorStatus Enum)
-        │     ├── notes: String
-        │     ├── warmthScore: Integer
-        │     ├── lastContactDate: String (ISO)
-        │     ├── nextFollowUpDate: String (ISO)
-        │     └── followUpsSent: Array<String>
-        │
-        ├── outreach/ {outreach_id}
-        │     ├── target_name: String
-        │     ├── target_company: String
-        │     ├── email_body: String
-        │     ├── call_script: String
-        │     ├── followups: Array<Map>
-        │     └── created_at: Timestamp
-        │
-        └── mood_logs/ {log_id}
-              ├── score: Double
-              ├── emotion: String
-              └── timestamp: Timestamp
+users/{uid}/
+  name, email, created_at
+
+  startups/{startup_id}/
+    name, idea, stage, mrr, user_count, updated_at
+
+    messages/{message_id}/
+      role: "user" | "socio"
+      content, mood_score, timestamp
+
+    investors/{investor_id}/
+      name, firm, status (InvestorStatus enum), notes
+      warmthScore, lastContactDate, nextFollowUpDate, followUpsSent[]
+
+    outreach/{outreach_id}/
+      target_name, target_company, email_body, call_script, followups[], created_at
+
+    mood_logs/{log_id}/
+      score, emotion, timestamp
 ```
 
----
-
-## 🧩 Feature Status & Implementation Details
-
-| Feature | Status | Screen | Component / Backend |
-|---|---|---|---|
-| **Google Sign-In** | ⚠️ Offline Fallback | `sign_in_screen.dart` | Wired in `AuthService`. Live auth works, fallback to `MockUser` (Offline Mode) activates seamlessly if Firebase is blocked or unconfigured. |
-| **Startup Onboarding** | ✅ Complete | `onboarding_screen.dart` | Captures core startup profile and MRR, setting up the foundation in Firestore. |
-| **Adaptive Persona Chat**| ✅ Complete | `chat_screen.dart` | Displays live blended persona metrics. Connects to `/chat` SSE stream. |
-| **Voice Command (STT)** | ✅ Complete | `chat_screen.dart` | Tapping the mic button records voice input using `speech_to_text`. |
-| **Voice Output (TTS)** | ✅ Complete | `chat_screen.dart` | Plays back AI responses via `flutter_tts` speaker toggle. |
-| **Activity Tracker** | ✅ Complete | `tracker_screen.dart` | Manages founder priority metrics, todo list items, and scheduled meetings. |
-| **Cold Outreach Suite** | ✅ Complete | `outreach_screen.dart` | Fetches Tavily company research and generates cold email/script copy from `/outreach`. |
-| **Investor Pipeline** | ✅ Complete | `pipeline_screen.dart` | High-fidelity Kanban board supporting full drag-and-drop statuses and follow-up email drafts. |
-| **Mood Tracker & Graph**| ✅ Complete | `mood_screen.dart` | Plots weekly mood scores using custom line charts and features a quick mood-log card. |
-| **Founder SOS** | ✅ Complete | `mood_screen.dart` | Triggers custom coping suggestions, critical priority focusing, and offline coping mechanisms if emotional scores drop. |
-| **Startup Stress Test** | ✅ Complete | `chat_screen.dart` | Triggers a live `/stress-test` endpoint call from the chat options menu. |
-| **Daily FCM standups** | 🔲 Backlog | Server + FCM | Triggers a 9:00 AM push notification asking for daily tasks. |
-| **Document Vault** | 🔲 Backlog | future tab | Firebase Storage uploads for pitch decks and legal files. |
-
----
-
-## 🛠 Critical Code Fixes (May 2026)
-
-Recently resolved key compile-time blocker errors to bring the app into a fully building, stable state:
-
-### 1. AuthService `isMockMode` Integration
-* **Problem:** `FirestoreService` queried `_authService.isMockMode` to decide whether to write to the mock in-memory database or real Firestore. However, `isMockMode` was not defined on `AuthService`.
-* **Fix:** Added a secure getter in [auth_service.dart](file:///c:/socio-ai/socio_app/lib/services/auth_service.dart) returning `true` when the `currentUser` is a local `MockUser`:
-  ```dart
-  bool get isMockMode => currentUser is MockUser;
-  ```
-
-### 2. InvestorModel `copyWith` Named Parameters
-* **Problem:** In the mock pipeline, `addInvestor` attempted to assign a mock ID using `investor.copyWith(id: '...')`. However, `copyWith` did not accept `id` (it was hardcoded to `id: id` inside the method signature).
-* **Fix:** Modified `copyWith` in [investor_model.dart](file:///c:/socio-ai/socio_app/lib/models/investor_model.dart) to accept optional `id` and `createdAt` parameters:
-  ```dart
-  InvestorModel copyWith({
-    String? id,
-    String? name,
-    ...
-    DateTime? createdAt,
-  }) {
-    return InvestorModel(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      ...
-      createdAt: createdAt ?? this.createdAt,
-    );
+### Firestore Security Rules (set in Firebase Console)
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
   }
-  ```
-
-*Both fixes are verified, compilation errors are fully resolved, and changes have been committed and pushed to branch **`sub`** on GitHub.*
+}
+```
 
 ---
 
-## 🚀 Execution & Verification Checklist
+## Feature Status
 
-To spin up and run the project:
+| Feature | Status | Screen | Notes |
+|---|---|---|---|
+| Google Sign-In | ✅ Fixed | `sign_in_screen.dart` | Google auth works. Offline/Mock fallback activates automatically if Firebase is blocked. |
+| Startup Onboarding | ✅ Complete | `onboarding_screen.dart` | 3-step setup. Saves to Firestore. Requests notification permission at end. |
+| Adaptive Persona Chat | ✅ Complete | `chat_screen.dart` | SSE stream, live persona gauge, mood indicator. |
+| Voice Input (STT) | ✅ Complete | `chat_screen.dart` | Mic button → speech_to_text dictation. |
+| Voice Output (TTS) | ✅ Complete | `chat_screen.dart` | Speaker toggle → flutter_tts reads AI response. |
+| Activity Tracker | ✅ Complete | `tracker_screen.dart` | Priority metrics, todo list, meetings. |
+| Daily FCM Standups | ✅ Complete | `tracker_screen.dart` + `standup_service.dart` | 9 AM + 9 PM local notifications. Tap → navigates to Chat tab. Test button in Tracker. |
+| Cold Outreach Suite | ✅ Complete | `outreach_screen.dart` | Tavily research + cold email + call script + 3-part follow-up. |
+| Investor Pipeline | ✅ Complete | `pipeline_screen.dart` | Drag-and-drop Kanban, 9 statuses, warmth scores, follow-up drafts. |
+| Mood Tracker & Graph | ✅ Complete | `mood_screen.dart` | Weekly mood line chart, quick mood logger. |
+| Founder SOS | ✅ Complete | `mood_screen.dart` | Triggers coping suggestions when emotional scores drop. |
+| Startup Stress Test | ✅ Complete | `chat_screen.dart` | Options menu → calls /stress-test endpoint. |
+| Competitor Radar | ✅ Complete | `competitor_radar_screen.dart` | Live Tavily research on competitor intel. |
+| Document Vault | 🔲 Backlog | Future tab | Firebase Storage uploads for pitch decks and legal files. |
 
-### 1. Running the Backend
-Ensure you are in the `socio_backend` folder, set up your keys, and launch:
+---
+
+## All Critical Code Fixes (Full History)
+
+### Fix 1 — AuthService `isMockMode` getter
+**Problem:** `FirestoreService` called `_authService.isMockMode` which didn't exist on `AuthService`.
+**Fix:** Added to `auth_service.dart`:
+```dart
+bool get isMockMode => currentUser is MockUser;
+```
+
+### Fix 2 — InvestorModel `copyWith` missing `id` parameter
+**Problem:** `addInvestor` called `investor.copyWith(id: '...')` but `copyWith` didn't accept `id`.
+**Fix:** Updated `investor_model.dart` — `copyWith` now accepts optional `id` and `createdAt`.
+
+### Fix 3 — Emoji removal sweep
+**Problem:** User requested full emoji removal for clean premium aesthetic.
+**Fix:** Removed all emojis from `investor_model.dart`, `chat_screen.dart`, `onboarding_screen.dart`, `pipeline_screen.dart`. `_moodEmoji` in chat_screen replaced with semantic strings (`'Happy'`, `'Neutral'`, `'Sad'`).
+
+### Fix 4 — Physical Android device compilation chain
+**Problem:** Building for physical Android 15 device failed with multiple errors.
+**Fixes:**
+- `build.gradle.kts`: enabled `isCoreLibraryDesugaringEnabled = true` + added `desugar_jdk_libs:2.0.4` dependency — required for `flutter_local_notifications` on Android.
+- `MainActivity.kt`: created at correct path `src/main/kotlin/com/doppelganger/socio/MainActivity.kt` — was previously mislocated under `com/example/socio_app`, causing `ClassNotFoundException` on startup.
+- `standup_service.dart`: changed to `AndroidScheduleMode.inexactAllowWhileIdle` (was `exactAllowWhileIdle`) — prevents `SecurityException` crash on Android 12+.
+- `main.dart`: wrapped `Firebase.initializeApp` in try-catch — prevents black screen freeze when Firebase keys are mock/unreachable.
+- `chat_service.dart` + `competitor_radar_screen.dart`: `_kBaseUrl = 'http://localhost:8000'` + `adb reverse tcp:8000 tcp:8000` — lets physical device hit local FastAPI server.
+
+### Fix 5 — Chat welcome message spam
+**Problem:** Riverpod rebuild cycles caused `setStartupContext` to fire multiple times simultaneously, writing duplicate welcome messages to Firestore.
+**Fix:** Added `_hasInitialized` boolean gate in `ChatNotifier` (`chat_provider.dart`) — blocks all duplicate welcome message writes after the first.
+
+### Fix 6 — Firebase Android setup (May 26, 2026)
+**Problem:** `google-services.json` wasn't present and Android project was missing native scaffold.
+**Fix sequence:**
+1. Ran `flutter create .` inside `socio_app/` to generate `android/`, `ios/`, `windows/` etc.
+2. Updated `android/app/build.gradle.kts` — changed `namespace` and `applicationId` from `com.example.socio_app` to `com.doppelganger.socio`.
+3. Registered Android app in Firebase Console with package `com.doppelganger.socio`, downloaded `google-services.json`, placed at `android/app/google-services.json`.
+4. Project-level `android/build.gradle.kts` — added `id("com.google.gms.google-services") version "4.4.2" apply false`.
+5. App-level `android/app/build.gradle.kts` — added `id("com.google.gms.google-services")` to plugins block.
+6. Added Firebase packages to `pubspec.yaml`: `firebase_core`, `firebase_auth`, `cloud_firestore`, `firebase_messaging`, `firebase_storage`.
+7. Ran `flutter pub get` — clean.
+
+### Fix 7 — FCM Daily Standup feature (May 26, 2026)
+**Problem:** `standup_service.dart` had `_handleNotificationTap` that only called `debugPrint` — never actually navigated anywhere. Only one morning notification. No permission request. No evening check-in.
+**Changes made:**
+
+`standup_service.dart` — complete rewrite:
+- `requestPermissions()` — requests Android 13+ POST_NOTIFICATIONS + iOS permission + FCM permission.
+- `scheduleDailyStandups()` — replaces old `scheduleDailyStandup()`. Schedules both 9 AM morning and 9 PM evening notifications.
+- `showTestMorningStandup()` / `showTestEveningCheckin()` — fires notification immediately for demo use.
+- `static TabSwitcher? onNotificationTap` — callback set by `main.dart` to switch tabs on tap.
+- `_routeFromPayload()` — calls `onNotificationTap(0)` for both morning and evening payloads → navigates to Chat tab.
+- FCM foreground handler — shows local notification when app is open and FCM message arrives.
+
+`main_navigation.dart`:
+- Added `static final ValueNotifier<int> tabNotifier = ValueNotifier<int>(0)`.
+- `initState` now calls `MainNavigation.tabNotifier.addListener(_onExternalTabSwitch)`.
+- `dispose` removes the listener.
+- `_onExternalTabSwitch()` updates `_currentIndex` via `_onTap()` when notifier fires.
+
+`main.dart`:
+- Wires `StandupService.onNotificationTap = (tabIndex) => MainNavigation.tabNotifier.value = tabIndex`.
+- Renamed call from `scheduleDailyStandup()` to `scheduleDailyStandups()`.
+
+`tracker_screen.dart`:
+- "Reply to Standup" button now calls `MainNavigation.tabNotifier.value = 0` — actually navigates to Chat.
+- Added "Send Test Notification" `OutlinedButton` — fires `showTestMorningStandup()` immediately. Essential for hackathon demo.
+- Updated standup card to show both morning and evening prompt previews.
+- Added imports: `main_navigation.dart`, `standup_service.dart`.
+
+`onboarding_screen.dart`:
+- Added `await StandupService().requestPermissions()` right after startup profile saves — optimal UX moment for permission dialog.
+
+---
+
+## Running the Project
+
+### Backend (local)
 ```powershell
 cd socio_backend
-# Add keys to .env: GEMINI_API_KEY, GROQ_API_KEY, TAVILY_API_KEY
+# .env must have: GEMINI_API_KEY, GROQ_API_KEY, TAVILY_API_KEY
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-### 2. Launching the App
-Run Flutter from the `socio_app` directory:
+### Flutter App
 ```powershell
 cd socio_app
 flutter pub get
 flutter run
 ```
-* **Verify Login:** Click **"Try Offline Mode"** on the SignIn screen to instantly access the app with the mock DB, or configure Google credentials in Firebase Console for production sync.
-* **Verify Chat:** Ask a question, toggle the Speaker icon for voice synthesis, or use the mic button for voice dictation.
-* **Verify Pipeline:** Drag cards between the stages, and check details to write a draft follow-up email.
-* **Verify Outreach:** Type in a company (e.g., "Google") and role (e.g., "PM"), click "Research & Write", and watch it pull live company analysis and drafts.
+
+### Physical Android Device Setup
+```powershell
+# 1. Run backend locally
+uvicorn main:app --reload
+
+# 2. Bridge device to local backend
+adb reverse tcp:8000 tcp:8000
+
+# 3. Run app targeting the device
+flutter run
+```
+
+### Verify after launch:
+1. Sign in → Google picker appears OR tap "Try Offline Mode"
+2. Onboarding → 3 steps → notification permission dialog fires
+3. Chat tab → send a message → see streaming response + persona gauge update
+4. Tracker tab → tap "Send Test Notification" → notification appears in tray → tap it → app opens to Chat tab
+5. Outreach tab → enter company + role → "Research & Write" generates email
+6. Pipeline tab → drag investor card between stages
+
+---
+
+## What's Left (Only 1 Item)
+
+| Feature | Priority | Notes |
+|---|---|---|
+| Document Vault | Low — Future scope | Firebase Storage upload for pitch decks, legal files. Not needed for hackathon demo. |
+
+---
+
+## Demo Script (Hackathon Pitch)
+
+1. **Onboard live** (30s) — show 3-step setup
+2. **Chat with Socio** (45s) — ask a hard founder question, show adaptive response + persona gauge
+3. **Trigger test notification** (15s) — Tracker tab → "Send Test Notification" → tap it → lands on Chat
+4. **Cold email writer** (30s) — enter "Google" + "PM" → watch live research + email generate
+5. **Investor pipeline** (15s) — drag a card across stages
+6. **Close:** "Every founder deserves a co-founder. Now they have one."
+
+---
+
+## Critical Rules
+
+- API keys NEVER in Flutter code — only in backend `.env`
+- All LLM calls through FastAPI — never direct from Flutter
+- LLM waterfall: Gemini → Groq → OpenRouter
+- Physical device testing requires `adb reverse tcp:8000 tcp:8000` when using local backend
+- `_kBaseUrl` in `chat_service.dart` = `http://localhost:8000` for local / switch to Render URL for production
+- Prompts use `.format()` — any `{` in JSON inside prompt files MUST be `{{`
+- After each feature, update Feature Status table and add a Fix entry above
+
+---
+
+## Update Log
+
+| Date | Update |
+|---|---|
+| May 2026 | Initial file created — pre-hackathon |
+| May 2026 | All 5 AI prompts written and verified |
+| May 2026 | Critical fix: all prompt placeholders corrected |
+| May 2026 | Step 2 complete — Firebase + Auth code written |
+| May 2026 | All screens built — Chat, Pipeline, Outreach, Mood, Tracker, Competitor Radar |
+| May 2026 | Physical Android fixes — desugaring, MainActivity, notification crash, Firebase safe-bypass |
+| May 2026 | Emoji removal sweep across full codebase |
+| May 2026 | Google Sign-In fixed |
+| May 26, 2026 | Firebase Android setup — flutter create, package rename, google-services.json, Gradle plugins |
+| May 26, 2026 | FCM Daily Standup feature complete — standup_service rewrite, tabNotifier, test button, evening check-in, permission request at onboarding |

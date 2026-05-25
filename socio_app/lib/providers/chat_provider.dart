@@ -57,6 +57,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
   final ChatService _service;
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _speechAvailable = false;
+  bool _hasInitialized = false;
 
   ChatNotifier(this._ref, this._service) : super(const ChatState()) {
     _initSpeech();
@@ -77,6 +78,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
   void setStartupContext(StartupModel ctx) async {
     state = state.copyWith(startupContext: ctx);
 
+    if (_hasInitialized) return;
+    _hasInitialized = true;
+
     final startupId = _ref.read(startupIdProvider);
     if (startupId.isEmpty) return;
 
@@ -91,7 +95,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
     // Add Socio welcome message if chat is empty
     if (state.messages.isEmpty) {
       final founderName = _ref.read(founderNameProvider);
-      final welcomeContent = "Hey $founderName 👋 I've loaded your startup context — **${ctx.name.isEmpty ? 'My Startup' : ctx.name}**.\n\nI'm your co-founder now. What's on your mind today?";
+      final welcomeContent = "Hey $founderName, I've loaded your startup context — **${ctx.name.isEmpty ? 'My Startup' : ctx.name}**.\n\nI'm your co-founder now. What's on your mind today?";
       _addSocioMessage(welcomeContent);
       
       // Save welcome message to Firestore

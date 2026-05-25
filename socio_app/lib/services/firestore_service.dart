@@ -70,6 +70,7 @@ class FirestoreService {
         stage: 'Idea stage',
         mrr: '0',
         userCount: '0',
+        customPersona: '',
         updatedAt: DateTime.now(),
       );
       return _mockStartup!;
@@ -86,6 +87,7 @@ class FirestoreService {
         stage: 'Idea stage',
         mrr: '0',
         userCount: '0',
+        customPersona: '',
         updatedAt: DateTime.now(),
       );
       await ref.set(blank.toFirestore());

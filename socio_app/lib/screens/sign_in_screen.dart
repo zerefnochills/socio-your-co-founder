@@ -252,7 +252,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen>
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Logged in with Dev Account! 🎉'),
+            content: Text('Logged in with Dev Account!'),
             backgroundColor: Color(0xFF059669),
           ),
         );

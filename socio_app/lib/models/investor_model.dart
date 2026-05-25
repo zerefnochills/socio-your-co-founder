@@ -9,7 +9,7 @@ enum InvestorStatus {
   meeting,       // Meeting scheduled or happened
   dueDiligence,  // They're doing DD
   termSheet,     // Term sheet received
-  closed,        // Deal closed ✅
+  closed,        // Deal closed
   passed,        // Hard no
   ghosted,       // No response after follow-ups
 }
@@ -31,15 +31,15 @@ extension InvestorStatusExt on InvestorStatus {
 
   String get emoji {
     switch (this) {
-      case InvestorStatus.identified:    return '🔍';
-      case InvestorStatus.contacted:     return '📧';
-      case InvestorStatus.responded:     return '💬';
-      case InvestorStatus.meeting:       return '🤝';
-      case InvestorStatus.dueDiligence:  return '🔬';
-      case InvestorStatus.termSheet:     return '📄';
-      case InvestorStatus.closed:        return '✅';
-      case InvestorStatus.passed:        return '❌';
-      case InvestorStatus.ghosted:       return '👻';
+      case InvestorStatus.identified:    return '';
+      case InvestorStatus.contacted:     return '';
+      case InvestorStatus.responded:     return '';
+      case InvestorStatus.meeting:       return '';
+      case InvestorStatus.dueDiligence:  return '';
+      case InvestorStatus.termSheet:     return '';
+      case InvestorStatus.closed:        return '';
+      case InvestorStatus.passed:        return '';
+      case InvestorStatus.ghosted:       return '';
     }
   }
 

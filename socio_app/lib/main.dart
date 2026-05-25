@@ -9,6 +9,7 @@ import 'screens/sign_in_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'navigation/main_navigation.dart';
 import 'app_theme.dart';
+import 'services/standup_service.dart';
 
 // Handle background FCM messages
 @pragma('vm:entry-point')
@@ -19,12 +20,28 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    // FCM background handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint("Firebase initialization failed: $e");
+  }
 
-  // FCM background handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // Initialize Daily Standup push notifications
+  try {
+    final standupService = StandupService();
+    await standupService.init();
+    await standupService.scheduleDailyStandups();
+    // CHANGE: Wire notification tap → switch to Chat tab in MainNavigation
+    StandupService.onNotificationTap = (int tabIndex) {
+      MainNavigation.tabNotifier.value = tabIndex;
+    };
+  } catch (e) {
+    debugPrint("Failed to initialize StandupService: $e");
+  }
 
   runApp(
     const ProviderScope(
@@ -119,4 +136,3 @@ class _SplashScreen extends StatelessWidget {
     );
   }
 }
-

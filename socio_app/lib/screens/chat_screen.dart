@@ -97,7 +97,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void _clearHistory() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Chat history is kept persistent for your startup context! ✦'),
+        content: Text('Chat history is kept persistent for your startup context!'),
         backgroundColor: SocioTheme.forestGreen,
       ),
     );
@@ -217,7 +217,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Online · Your co-founder',
+                    'Active',
                     style: GoogleFonts.dmSans(
                       fontSize: 11, color: SocioTheme.mutedText,
                     ),
@@ -361,9 +361,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   String _moodEmoji(double score) {
-    if (score >= 0.7) return '😊';
-    if (score >= 0.4) return '😐';
-    return '😔';
+    if (score >= 0.7) return 'Happy';
+    if (score >= 0.4) return 'Neutral';
+    return 'Sad';
   }
 }
 

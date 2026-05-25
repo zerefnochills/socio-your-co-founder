@@ -573,8 +573,6 @@ class _StatusBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(status.emoji, style: const TextStyle(fontSize: 11)),
-          const SizedBox(width: 4),
           Text(
             status.label,
             style: GoogleFonts.dmSans(
@@ -651,8 +649,6 @@ class _KanbanColumn extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                Text(stage.emoji, style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 6),
                 Text(stage.label,
                     style: GoogleFonts.dmSans(
                       fontSize: 13,
@@ -1023,7 +1019,7 @@ class _InvestorDetailSheetState
 
                   if (_followUpEmail != null) ...[
                     const SizedBox(height: 24),
-                    _SectionLabel('✨ AI-Generated Follow-up'),
+                    _SectionLabel('AI-Generated Follow-up'),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(14),
@@ -1175,9 +1171,6 @@ class _StatusPicker extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(s.emoji,
-                    style: const TextStyle(fontSize: 12)),
-                const SizedBox(width: 4),
                 Text(
                   s.label,
                   style: GoogleFonts.dmSans(

@@ -13,6 +13,10 @@ import '../screens/mood_screen.dart';
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
+  /// Call this from anywhere (e.g. notification tap) to switch the active tab.
+  /// 0=Chat, 1=Pipeline, 2=Outreach, 3=Tracker, 4=Mood
+  static final ValueNotifier<int> tabNotifier = ValueNotifier<int>(0);
+
   @override
   State<MainNavigation> createState() => _MainNavigationState();
 }
@@ -42,12 +46,24 @@ class _MainNavigationState extends State<MainNavigation>
   void initState() {
     super.initState();
     _animCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+    // CHANGE: Listen to external tab switch requests (e.g. from notification taps)
+    MainNavigation.tabNotifier.addListener(_onExternalTabSwitch);
   }
 
   @override
   void dispose() {
+    // CHANGE: Remove listener to avoid memory leaks
+    MainNavigation.tabNotifier.removeListener(_onExternalTabSwitch);
     _animCtrl.dispose();
     super.dispose();
+  }
+
+  // CHANGE: Called when a notification or external source requests a tab switch
+  void _onExternalTabSwitch() {
+    final index = MainNavigation.tabNotifier.value;
+    if (index != _currentIndex) {
+      _onTap(index);
+    }
   }
 
   void _onTap(int index) {

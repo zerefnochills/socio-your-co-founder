@@ -7,6 +7,7 @@ class StartupModel {
   final String stage;
   final String mrr;
   final String userCount;
+  final String customPersona;
   final DateTime updatedAt;
 
   StartupModel({
@@ -16,6 +17,7 @@ class StartupModel {
     required this.stage,
     required this.mrr,
     required this.userCount,
+    required this.customPersona,
     required this.updatedAt,
   });
 
@@ -26,6 +28,7 @@ class StartupModel {
         stage: 'Idea stage',
         mrr: '0',
         userCount: '0',
+        customPersona: '',
         updatedAt: DateTime.now(),
       );
 
@@ -38,6 +41,7 @@ class StartupModel {
       stage: data['stage'] ?? 'Idea stage',
       mrr: (data['mrr'] ?? 0).toString(),
       userCount: (data['user_count'] ?? 0).toString(),
+      customPersona: data['customPersona'] ?? '',
       updatedAt: (data['updated_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -48,6 +52,7 @@ class StartupModel {
         'stage': stage,
         'mrr': mrr,
         'user_count': userCount,
+        'customPersona': customPersona,
         'updated_at': FieldValue.serverTimestamp(),
       };
 
@@ -58,6 +63,7 @@ class StartupModel {
     String? stage,
     String? mrr,
     String? userCount,
+    String? customPersona,
   }) =>
       StartupModel(
         id: id ?? this.id,
@@ -66,6 +72,7 @@ class StartupModel {
         stage: stage ?? this.stage,
         mrr: mrr ?? this.mrr,
         userCount: userCount ?? this.userCount,
+        customPersona: customPersona ?? this.customPersona,
         updatedAt: DateTime.now(),
       );
 
@@ -76,5 +83,6 @@ class StartupModel {
         'startup_stage': stage,
         'mrr': mrr,
         'user_count': userCount,
+        'customPersona': customPersona,
       };
 }

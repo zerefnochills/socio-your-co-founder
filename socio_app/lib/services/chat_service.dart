@@ -11,7 +11,7 @@ import '../models/startup_model.dart';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 // Swap this if using deployed Render URL
-final String _kBaseUrl = kIsWeb ? 'http://localhost:8000' : 'http://10.0.2.2:8000'; // Dynamic localhost for Web / Android emulator
+final String _kBaseUrl = 'http://localhost:8000'; // Dynamic localhost forwarded via adb reverse
 
 
 // ── Data types ────────────────────────────────────────────────────────────────
