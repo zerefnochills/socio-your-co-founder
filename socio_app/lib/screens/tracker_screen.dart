@@ -6,6 +6,8 @@ import '../app_theme.dart';
 import '../models/startup_model.dart';
 import '../providers/startup_provider.dart';
 import '../providers/auth_provider.dart';
+import '../navigation/main_navigation.dart';
+import '../services/standup_service.dart';
 import 'competitor_radar_screen.dart';
 
 /// Socio Tracker Screen — refined premium dashboard.
@@ -466,7 +468,8 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
                   color: const Color(0xFFFEF3C7),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.notifications_active_outlined, color: Color(0xFFD97706), size: 20),
+                child: const Icon(Icons.notifications_active_outlined,
+                    color: Color(0xFFD97706), size: 20),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -483,7 +486,7 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Every morning at 9:00 AM',
+                      '9:00 AM morning + 9:00 PM evening',
                       style: GoogleFonts.dmSans(
                         fontSize: 11,
                         color: SocioTheme.mutedText,
@@ -495,38 +498,107 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
             ],
           ),
           const SizedBox(height: 16),
+          // Morning prompt preview
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: SocioTheme.creamBg,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: SocioTheme.creamBorder.withOpacity(0.5)),
             ),
-            child: Text(
-              '"$founderName, what is the single blocker keeping you from onboarding 5 new clients today?"',
-              style: GoogleFonts.dmSans(
-                fontSize: 13, 
-                color: SocioTheme.slateText.withOpacity(0.85), 
-                fontStyle: FontStyle.italic,
-                height: 1.4,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Morning',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFFD97706),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '"$founderName, what is the single biggest blocker keeping you from growing today?"',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    color: SocioTheme.slateText.withOpacity(0.85),
+                    fontStyle: FontStyle.italic,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Evening prompt preview
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: SocioTheme.creamBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: SocioTheme.creamBorder.withOpacity(0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Evening',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: SocioTheme.violet,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '"What got done? What got blocked? Socio is ready to debrief."',
+                  style: GoogleFonts.dmSans(
+                    fontSize: 13,
+                    color: SocioTheme.slateText.withOpacity(0.85),
+                    fontStyle: FontStyle.italic,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
+          // CHANGE: Reply button now actually switches to Chat tab
           SizedBox(
             width: double.infinity,
             height: 44,
             child: ElevatedButton(
               onPressed: () {
                 HapticFeedback.mediumImpact();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Routing to Chat to answer standup...'),
-                    backgroundColor: SocioTheme.forestGreen,
-                  ),
-                );
+                // Switch to Chat tab (index 0)
+                MainNavigation.tabNotifier.value = 0;
               },
               child: const Text('Reply to Standup'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // CHANGE: Test button fires a real notification immediately (for demo)
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                HapticFeedback.lightImpact();
+                await StandupService().showTestMorningStandup();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Test notification sent — check your notification tray'),
+                      backgroundColor: SocioTheme.forestGreen,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.notifications_outlined, size: 16),
+              label: const Text('Send Test Notification'),
             ),
           ),
         ],
@@ -534,4 +606,3 @@ class _TrackerScreenState extends ConsumerState<TrackerScreen> {
     );
   }
 }
-

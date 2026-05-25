@@ -6,6 +6,7 @@ import '../app_theme.dart';
 import '../models/startup_model.dart';
 import '../providers/startup_provider.dart';
 import '../navigation/main_navigation.dart';
+import '../services/standup_service.dart';
 
 /// OnboardingScreen — Socio AI Co-Founder App
 /// Design: Warm minimal editorial luxury, responsive steps, strong typography.
@@ -138,6 +139,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
       );
 
       await ref.read(startupNotifierProvider.notifier).save(updated);
+
+      // CHANGE: Request notification permission right after onboarding — best moment UX-wise
+      await StandupService().requestPermissions();
 
       if (mounted) {
         setState(() => _isLoading = false);

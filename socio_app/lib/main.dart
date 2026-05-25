@@ -34,7 +34,11 @@ void main() async {
   try {
     final standupService = StandupService();
     await standupService.init();
-    await standupService.scheduleDailyStandup();
+    await standupService.scheduleDailyStandups();
+    // CHANGE: Wire notification tap → switch to Chat tab in MainNavigation
+    StandupService.onNotificationTap = (int tabIndex) {
+      MainNavigation.tabNotifier.value = tabIndex;
+    };
   } catch (e) {
     debugPrint("Failed to initialize StandupService: $e");
   }
@@ -132,4 +136,3 @@ class _SplashScreen extends StatelessWidget {
     );
   }
 }
-
