@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "555574236767",
+    "project_id": "socio-ai-6f516",
+    "storage_bucket": "socio-ai-6f516.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:555574236767:android:d92ddae26b214d779badea",
+        "android_client_info": {
+          "package_name": "com.doppelganger.socio"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDsYt6KgpschnWuVucKSr37iYG4GxMO-2A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

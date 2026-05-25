@@ -1,9 +1,3 @@
-# ============================================================
-# SOCIO — AI Co-Founder Backend
-# FastAPI + Gemini + Groq + Tavily
-# Team Doppelganger | Deepak Pandey | QuantCraft 2026
-# ============================================================
-
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware

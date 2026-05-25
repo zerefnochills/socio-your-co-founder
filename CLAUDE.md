@@ -300,3 +300,41 @@ users/{uid}/
 ---
 
 *Update this file after every feature build. Mark status in the Feature Status table.*
+
+---
+
+## 🔥 Step 2 Complete — Firebase + Auth
+
+**Status: ✅ Code written, ready to wire**
+
+### Files added to Flutter project
+
+| File | Purpose |
+|---|---|
+| `pubspec.yaml` | All dependencies added (Firebase, Riverpod, Dio, Hive, STT, TTS) |
+| `lib/main.dart` | Firebase init, ProviderScope, auth-gated routing (splash → onboarding or main nav) |
+| `lib/models/startup_model.dart` | StartupModel with `toFirestore()`, `fromFirestore()`, `toApiContext()` |
+| `lib/models/message_model.dart` | MessageModel with role enum, streaming flag, `toApiMessage()` |
+| `lib/services/auth_service.dart` | Google Sign-In, Firebase Auth, auto-creates user doc on first sign-in |
+| `lib/services/firestore_service.dart` | Full CRUD: startup, messages, mood logs, investors, outreach |
+| `lib/providers/auth_provider.dart` | authStateProvider (stream), SignInNotifier, founderNameProvider |
+| `lib/providers/startup_provider.dart` | StartupNotifier, apiContextProvider (ready for chat/outreach calls) |
+
+### Firestore security rules to set in Firebase Console
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+### After wiring — confirm these 3 things work before moving to onboarding:
+1. Tap sign-in → Google picker appears → user lands on main nav
+2. Firebase Console → users/{uid} document exists
+3. `flutter pub get` runs clean with no dependency errors
+
