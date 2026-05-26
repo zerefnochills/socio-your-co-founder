@@ -12,6 +12,7 @@ import '../app_theme.dart';
 import '../models/investor_model.dart';
 import '../providers/pipeline_provider.dart';
 import '../providers/startup_provider.dart';
+import '../providers/outreach_provider.dart';
 import '../services/firestore_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,6 +86,9 @@ class _PipelineScreenState extends ConsumerState<PipelineScreen>
               onToggleView: () => setState(() => _isKanban = !_isKanban),
             ),
 
+            // Auto-pipeline setup banner
+            _AutoPipelineBanner(),
+
             // Overdue banner
             if (overdue.isNotEmpty)
               _OverdueBanner(overdue: overdue),
@@ -130,6 +134,134 @@ class _PipelineScreenState extends ConsumerState<PipelineScreen>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _AddInvestorSheet(),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auto Pipeline Setup Banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AutoPipelineBanner extends ConsumerWidget {
+  const _AutoPipelineBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(autoPipelineProvider);
+    return state.when(
+      loading: () => _BannerLoading(),
+      error: (e, _) => _BannerError(message: e.toString()),
+      data: (s) {
+        if (s.completed) return _BannerSuccess(savedCount: s.savedCount);
+        if (s.isRunning)  return _BannerLoading();
+        return _BannerCTA(
+          onTap: () => ref.read(autoPipelineProvider.notifier).runAutoSetup(),
+        );
+      },
+    );
+  }
+}
+
+class _BannerCTA extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BannerCTA({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: SocioTheme.forestGreen.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SocioTheme.forestGreen.withOpacity(0.25)),
+      ),
+      child: Row(children: [
+        Icon(Icons.auto_awesome_rounded, size: 18, color: _purple),
+        const SizedBox(width: 10),
+        Expanded(child: Text('Auto-discover investors for your startup',
+            style: GoogleFonts.dmSans(fontSize: 13, color: _text, fontWeight: FontWeight.w500))),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(color: _purple, borderRadius: BorderRadius.circular(99)),
+            child: Text('Auto-Setup',
+                style: GoogleFonts.dmSans(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600)),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _BannerLoading extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: SocioTheme.forestGreen.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SocioTheme.forestGreen.withOpacity(0.25)),
+      ),
+      child: Row(children: [
+        SizedBox(width: 16, height: 16,
+            child: CircularProgressIndicator(color: _purple, strokeWidth: 2)),
+        const SizedBox(width: 10),
+        Text('Finding investors via AI research…',
+            style: GoogleFonts.dmSans(fontSize: 13, color: _textMuted)),
+      ]),
+    );
+  }
+}
+
+class _BannerSuccess extends StatelessWidget {
+  final int savedCount;
+  const _BannerSuccess({required this.savedCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: SocioTheme.emeraldAccent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SocioTheme.emeraldAccent.withOpacity(0.3)),
+      ),
+      child: Row(children: [
+        Icon(Icons.check_circle_rounded, size: 18, color: _success),
+        const SizedBox(width: 8),
+        Text('$savedCount investors added to pipeline automatically',
+            style: GoogleFonts.dmSans(fontSize: 13, color: _success, fontWeight: FontWeight.w500)),
+      ]),
+    );
+  }
+}
+
+class _BannerError extends StatelessWidget {
+  final String message;
+  const _BannerError({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: SocioTheme.rose.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: SocioTheme.rose.withOpacity(0.25)),
+      ),
+      child: Row(children: [
+        Icon(Icons.error_outline_rounded, size: 18, color: _error),
+        const SizedBox(width: 8),
+        Expanded(child: Text(
+            'Auto-setup failed: ${message.length > 60 ? '${message.substring(0, 60)}…' : message}',
+            style: GoogleFonts.dmSans(fontSize: 12, color: _error))),
+      ]),
     );
   }
 }
@@ -787,25 +919,12 @@ class _InvestorDetailSheetState
 
     try {
       final startup = ref.read(startupNotifierProvider).value;
-      final dio = Dio();
-      final host = kIsWeb ? 'localhost:8000' : '10.0.2.2:8000';
-      final resp = await dio.post(
-        'http://$host/investor-followup',
-        data: {
-          'investor_name': widget.investor.name,
-          'investor_firm': widget.investor.firm,
-          'meeting_notes': widget.investor.notes,
-          'days_since_contact': widget.investor.daysSinceContact,
-          'status': widget.investor.status.label,
-          'startup_name': startup?.name ?? 'My Startup',
-          'traction': startup != null
-              ? 'MRR: ₹${startup.mrr}, Users: ${startup.userCount}'
-              : 'Early stage, building MVP',
-        },
+      final data = await ref.read(leadServiceProvider).generateFollowUp(
+        investor: widget.investor,
+        startup: startup,
       );
 
-
-      final email = resp.data['email'] ?? resp.data['follow_up_email'] ?? '';
+      final email = data['email'] ?? data['follow_up_email'] ?? '';
       setState(() {
         _followUpEmail = email;
         _generatingFollowUp = false;

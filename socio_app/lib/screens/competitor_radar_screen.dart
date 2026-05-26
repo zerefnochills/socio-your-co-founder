@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 
 import '../app_theme.dart';
 import '../providers/startup_provider.dart';
+import '../providers/outreach_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Competitor Data Model
@@ -115,21 +116,14 @@ class _CompetitorRadarScreenState extends ConsumerState<CompetitorRadarScreen>
     });
 
     try {
-      final dio = Dio();
-      const host = 'localhost:8000'; // Dynamic localhost forwarded via adb reverse
-      final resp = await dio.post(
-        'http://$host/competitor-radar',
-        data: {
-          'idea': startup.idea,
-          'company_name': startup.name.isNotEmpty ? startup.name : 'My Startup',
-        },
+      final competitorList = await ref.read(leadServiceProvider).fetchCompetitors(
+        idea: startup.idea,
+        companyName: startup.name,
       );
 
-      final data = resp.data;
-      final List<dynamic> competitorList = data['competitors'] ?? [];
       setState(() {
         _competitors =
-            competitorList.map((c) => CompetitorInfo.fromJson(c)).toList();
+            competitorList.map((c) => CompetitorInfo.fromJson(c as Map<String, dynamic>)).toList();
         _loading = false;
       });
     } catch (e) {

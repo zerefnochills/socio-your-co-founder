@@ -7,6 +7,10 @@ import httpx
 import os
 import json
 import asyncio
+import re
+import google.generativeai as genai
+from groq import Groq
+from tavily import TavilyClient
 from dotenv import load_dotenv
 
 # ── Robust Path Resolution ─────────────────────────────────────
@@ -32,6 +36,28 @@ app.add_middleware(
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GROQ_API_KEY   = os.getenv("GROQ_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+
+# ── Mock Mode Settings ─────────────────────────────────────────
+MOCK_MODE = os.getenv("MOCK_MODE", "False").lower() in ("true", "1", "yes") or os.getenv("TESTING", "False").lower() in ("true", "1", "yes")
+
+# ── API Clients ────────────────────────────────────────────────
+if GEMINI_API_KEY and not MOCK_MODE:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        print(f"Error configuring Gemini: {e}")
+
+try:
+    groq_client = Groq(api_key=GROQ_API_KEY) if (GROQ_API_KEY and not MOCK_MODE) else None
+except Exception as e:
+    print(f"Error configuring Groq: {e}")
+    groq_client = None
+
+try:
+    tavily_client = TavilyClient(api_key=TAVILY_API_KEY) if (TAVILY_API_KEY and not MOCK_MODE) else None
+except Exception as e:
+    print(f"Error configuring Tavily: {e}")
+    tavily_client = None
 
 # ── API URLs ──────────────────────────────────────────────────
 GEMINI_URL = (
@@ -246,6 +272,19 @@ async def classify_mood(
     recent_history: List[MessageItem]
 ) -> dict:
 
+    if MOCK_MODE:
+        return {
+            "emotion": "focused",
+            "intent": "general",
+            "urgency": "low",
+            "mood_score": 0.85,
+            "skeptic_weight": 0.15,
+            "hustler_weight": 0.45,
+            "strategist_weight": 0.4,
+            "needs_sos": False,
+            "reasoning": "Mock mood classification active."
+        }
+
     history_text = " | ".join(
         [m.content for m in recent_history[-3:]]
     )
@@ -287,6 +326,17 @@ async def classify_mood(
 
 # ── Gemini streaming ──────────────────────────────────────────
 async def stream_gemini(system_prompt: str, message: str):
+    if MOCK_MODE:
+        mock_chunks = [
+            "Hi ", "there! ", "As ", "your ", "AI ", "co-founder, ",
+            "I've ", "analyzed ", "your ", "idea. ", "Let's ", "focus ", "on ", "shipping ",
+            "the ", "MVP ", "quickly ", "and ", "validating ", "with ", "users."
+        ]
+        for chunk in mock_chunks:
+            yield chunk
+            await asyncio.sleep(0.01)
+        return
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         res = await client.post(
             f"{GEMINI_URL}?key={GEMINI_API_KEY}&alt=sse",
@@ -318,13 +368,58 @@ async def stream_gemini(system_prompt: str, message: str):
                 except Exception:
                     continue
 
-# ── Groq standard call (non-streaming) ───────────────────────
 async def call_groq(
     system_prompt: str,
     user_message: str,
     max_tokens: int = 500,
     temperature: float = 0.8
 ) -> str:
+    if MOCK_MODE:
+        sp_lower = system_prompt.lower()
+        um_lower = user_message.lower()
+        if "cold email writer" in sp_lower or "cold_email" in um_lower:
+            return json.dumps({
+                "cold_email": {
+                    "subject": "Socio AI x Google",
+                    "body": "Hey there,\n\nI saw your team is building cool things. We're launching Socio AI to make a premium AI co-founder.\n\nLet's chat next week.",
+                    "ps": "P.S. Love your latest post on LinkedIn!"
+                },
+                "call_script": {
+                    "permission_opener": "Hey, is now a bad time to chat?",
+                    "hook": "We're building an AI co-founder that scales startup speed.",
+                    "bridge": "We have 150 early users.",
+                    "ask": "Can we grab 10 minutes next Tuesday at 2 PM?",
+                    "objection_not_interested": "No problem, we will send an email update.",
+                    "objection_send_something": "Sure, sending the link right now."
+                },
+                "followups": {
+                    "day_3": {
+                        "subject": "Checking back on Socio AI",
+                        "body": "Hey, just replying here to see if you have 10 minutes."
+                    },
+                    "day_7": {
+                        "subject": "New milestone for Socio AI",
+                        "body": "Hey, we just crossed 200 users! Would love to chat."
+                    },
+                    "day_14": {
+                        "subject": "Closing the loop on Socio AI",
+                        "body": "Hey, closing the loop here. Let me know if we should connect later."
+                    }
+                }
+            })
+        elif "investor" in sp_lower or "investor_name" in um_lower or "firm" in um_lower:
+            return json.dumps({
+                "subject": "Update on Socio AI",
+                "body": "Hi there,\n\nI wanted to share a quick update on our pre-seed round. We've seen great initial user traction.\n\nBest,\nAyush",
+                "send_as_reply": True,
+                "follow_up_recommended_in_days": 7,
+                "tone_note": "Friendly, professional, and traction-focused."
+            })
+        elif "stress test" in system_prompt or "stress_test" in user_message or "verdict" in user_message:
+            return "### Socio Stress Test Verdict\n\n- **Assumption**: Your market size is huge.\n- **Threat**: Google might launch this tomorrow.\n- **Score**: 8.5/10\n\nYour model is resilient, but watch out for distribution channels."
+        else:
+            return "Hello from Socio AI Co-Founder!"
+
     async with httpx.AsyncClient(timeout=20.0) as client:
         res = await client.post(
             GROQ_URL,
@@ -344,6 +439,9 @@ async def call_groq(
 
 # ── Tavily web research ───────────────────────────────────────
 async def research_target(name: str, company: str) -> str:
+    if MOCK_MODE:
+        return f"Mock search research findings for {name} at {company} showing active seed-stage investing."
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             res = await client.post(
@@ -570,3 +668,803 @@ async def stress_test(request: StressTestRequest):
         return {"analysis": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class LeadFinderRequest(BaseModel):
+    startup_name: str
+    startup_idea: str
+    startup_stage: str
+    target_customer: str          # e.g. "B2B SaaS companies scaling their sales team"
+    num_search_rounds: int = 3    # how many Tavily queries to run (more = richer results)
+
+class InvestorFinderRequest(BaseModel):
+    startup_name: str
+    startup_idea: str
+    startup_stage: str            # "Idea Stage" | "Pre-seed" | "Seed" | "Series A"
+    mrr: str
+    user_count: str
+    geography: str = "India"      # focus region
+
+class InvestorEnrichRequest(BaseModel):
+    investor_name: str
+    firm: str
+    startup_name: str
+    startup_idea: str
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# HELPER — shared JSON extractor (strip markdown fences from LLM output)
+# ════════════════════════════════════════════════════════════════════════════
+
+def _extract_json(text: str) -> list:
+    """Strip markdown fences and parse JSON array from LLM response."""
+    cleaned = re.sub(r"```(?:json)?", "", text).strip().rstrip("`").strip()
+    # Find the outermost [...] array
+    start = cleaned.find("[")
+    end   = cleaned.rfind("]") + 1
+    if start == -1 or end == 0:
+        raise ValueError(f"No JSON array found in LLM output: {cleaned[:200]}")
+    return json.loads(cleaned[start:end])
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ENDPOINT 1: POST /find-leads
+# Auto-discovers real B2B leads using Tavily + Gemini
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.post("/find-leads")
+async def find_leads(req: LeadFinderRequest):
+    """
+    Runs multiple targeted Tavily searches based on startup context,
+    feeds results to Gemini, returns a structured list of prioritised leads.
+    """
+    if MOCK_MODE:
+        return {
+            "leads": [
+                {
+                    "company": "Linear",
+                    "domain": "linear.app",
+                    "fit_reason": "Highly active startup-focused workspace management tool. Matches Socio's target profile.",
+                    "decision_maker_title": "Head of Product",
+                    "company_size": "Mid-market",
+                    "budget_signal": "Recently raised Series B and actively scaling engineering team.",
+                    "priority_score": 92
+                },
+                {
+                    "company": "Vercel",
+                    "domain": "vercel.com",
+                    "fit_reason": "DevOps leader, focuses heavily on solo developers and small teams.",
+                    "decision_maker_title": "Director of Growth",
+                    "company_size": "Enterprise",
+                    "budget_signal": "Launching new AI product division.",
+                    "priority_score": 88
+                }
+            ],
+            "search_queries_run": ["mock_leads_query_1", "mock_leads_query_2"]
+        }
+
+    # ── Step 1: Build search queries tailored to this founder ──────────────
+    search_queries = [
+        f"{req.target_customer} companies hiring 2026",
+        f"{req.target_customer} startups recently funded seed series A 2025 2026",
+        f"best {req.target_customer} tools software companies India 2026",
+        f"{req.startup_idea} potential customers use cases companies",
+        f"companies struggling with {req.startup_idea.lower()} problems 2026",
+    ]
+    # Only run num_search_rounds queries (caller controls depth vs speed)
+    search_queries = search_queries[:req.num_search_rounds]
+
+    # ── Step 2: Run Tavily searches in parallel ────────────────────────────
+    async def perform_search(query):
+        try:
+            res = await asyncio.to_thread(
+                tavily_client.search,
+                query=query,
+                search_depth="advanced",
+                max_results=6,
+                include_answer=True,
+            )
+            return res
+        except Exception as e:
+            print(f"Tavily search failed for '{query}': {e}")
+            return None
+
+    search_tasks = [perform_search(q) for q in search_queries]
+    search_responses = await asyncio.gather(*search_tasks)
+
+    all_results_text = []
+    for tavily_resp in search_responses:
+        if not tavily_resp:
+            continue
+        # Flatten into readable text for the LLM
+        for r in tavily_resp.get("results", []):
+            all_results_text.append(
+                f"SOURCE: {r.get('url', '')}\n"
+                f"TITLE: {r.get('title', '')}\n"
+                f"CONTENT: {r.get('content', '')[:600]}\n"
+            )
+        if tavily_resp.get("answer"):
+            all_results_text.append(f"SUMMARY: {tavily_resp['answer']}\n")
+
+    if not all_results_text:
+        raise HTTPException(status_code=503, detail="All Tavily searches failed — check TAVILY_API_KEY")
+
+    combined_results = "\n---\n".join(all_results_text)
+
+    # ── Step 3: Load prompt and inject context ─────────────────────────────
+    with open("prompts/lead_finder_prompt.txt", "r") as f:
+        prompt_template = f.read()
+
+    prompt = prompt_template.format(
+        startup_name=req.startup_name,
+        startup_idea=req.startup_idea,
+        startup_stage=req.startup_stage,
+        target_customer=req.target_customer,
+        search_results=combined_results[:12000],  # stay within context
+    )
+
+    # ── Step 4: Gemini call (non-streaming — we need structured JSON) ──────
+    raw_leads_json = None
+
+    # Try Gemini first
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        raw_leads_json = response.text
+    except Exception as e:
+        print(f"Gemini /find-leads failed: {e}")
+
+    # Groq fallback
+    if not raw_leads_json:
+        try:
+            groq_resp = await asyncio.to_thread(
+                groq_client.chat.completions.create,
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=3000,
+            )
+            raw_leads_json = groq_resp.choices[0].message.content
+        except Exception as e:
+            print(f"Groq /find-leads fallback failed: {e}")
+
+    if not raw_leads_json:
+        raise HTTPException(status_code=503, detail="All LLMs failed for lead finding")
+
+    # ── Step 5: Parse and return ───────────────────────────────────────────
+    try:
+        leads = _extract_json(raw_leads_json)
+        return {"leads": leads, "search_queries_run": search_queries}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse LLM JSON output: {str(e)}. Raw: {raw_leads_json[:500]}"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ENDPOINT 2: POST /find-investors
+# Discovers real active investors using Tavily + Gemini
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.post("/find-investors")
+async def find_investors(req: InvestorFinderRequest):
+    """
+    Runs targeted Tavily searches for investors active in this founder's
+    sector + stage, returns a prioritised, structured list.
+    """
+    if MOCK_MODE:
+        return {
+            "investors": [
+                {
+                    "investor_name": "Kunal Shah",
+                    "firm": "QED Partners",
+                    "fit_reason": "Prolific B2C SaaS and fintech investor backing Indian solo founders.",
+                    "stage": "Seed / Pre-seed",
+                    "sector_focus": "SaaS, Consumer, Fintech",
+                    "recent_signal": "Invested in 3 early-stage AI startups in 2026.",
+                    "contact_approach": "LinkedIn DM referencing active fintech thesis",
+                    "warmth": "lukewarm",
+                    "priority_score": 88
+                },
+                {
+                    "investor_name": "Sandeep Nailwal",
+                    "firm": "Polygon Ventures",
+                    "fit_reason": "Strong focus on decentralized platforms and AI co-founder systems.",
+                    "stage": "Pre-seed / Seed",
+                    "sector_focus": "AI, Web3, Infrastructure",
+                    "recent_signal": "Announced new $50M early-stage accelerator program.",
+                    "contact_approach": "Twitter / X DM or warm intro via developer network",
+                    "warmth": "lukewarm",
+                    "priority_score": 82
+                }
+            ],
+            "search_queries_run": ["mock_investors_query_1", "mock_investors_query_2"]
+        }
+    # Map stage to search terms
+    stage_map = {
+        "Idea Stage":  "pre-seed angel",
+        "Pre-seed":    "pre-seed angel seed",
+        "Seed":        "seed early stage",
+        "Series A":    "series A growth",
+    }
+    stage_term = stage_map.get(req.startup_stage, "early stage seed")
+
+    # Infer sector from idea (simple keyword matching — good enough)
+    idea_lower = req.startup_idea.lower()
+    sector_hints = []
+    if any(w in idea_lower for w in ["saas", "software", "app", "platform", "tool"]):
+        sector_hints.append("SaaS")
+    if any(w in idea_lower for w in ["ai", "ml", "model", "gpt", "llm"]):
+        sector_hints.append("AI")
+    if any(w in idea_lower for w in ["b2b", "enterprise", "business"]):
+        sector_hints.append("B2B")
+    if any(w in idea_lower for w in ["consumer", "b2c", "user", "mobile"]):
+        sector_hints.append("consumer")
+    if not sector_hints:
+        sector_hints = ["startup"]
+
+    sector_str = " ".join(sector_hints)
+
+    search_queries = [
+        f"{req.geography} {stage_term} investors {sector_str} 2025 2026 portfolio",
+        f"active angel investors {req.geography} {sector_str} {stage_term} funding",
+        f"VC funds {req.geography} investing {sector_str} early stage 2026",
+        f"Indian startup investors {sector_str} solo founders backing",
+    ]
+
+    # ── Run Tavily searches in parallel ──
+    async def perform_search(query):
+        try:
+            res = await asyncio.to_thread(
+                tavily_client.search,
+                query=query,
+                search_depth="advanced",
+                max_results=7,
+                include_answer=True,
+            )
+            return res
+        except Exception as e:
+            print(f"Tavily investor search failed for '{query}': {e}")
+            return None
+
+    search_tasks = [perform_search(q) for q in search_queries]
+    search_responses = await asyncio.gather(*search_tasks)
+
+    all_results_text = []
+    for tavily_resp in search_responses:
+        if not tavily_resp:
+            continue
+        for r in tavily_resp.get("results", []):
+            all_results_text.append(
+                f"SOURCE: {r.get('url', '')}\n"
+                f"TITLE: {r.get('title', '')}\n"
+                f"CONTENT: {r.get('content', '')[:700]}\n"
+            )
+        if tavily_resp.get("answer"):
+            all_results_text.append(f"SUMMARY: {tavily_resp['answer']}\n")
+
+    if not all_results_text:
+        raise HTTPException(status_code=503, detail="All Tavily searches failed")
+
+    combined_results = "\n---\n".join(all_results_text)
+
+    with open("prompts/investor_finder_prompt.txt", "r") as f:
+        prompt_template = f.read()
+
+    prompt = prompt_template.format(
+        startup_name=req.startup_name,
+        startup_idea=req.startup_idea,
+        startup_stage=req.startup_stage,
+        mrr=req.mrr,
+        user_count=req.user_count,
+        search_results=combined_results[:12000],
+    )
+
+    raw_investors_json = None
+
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        raw_investors_json = response.text
+    except Exception as e:
+        print(f"Gemini /find-investors failed: {e}")
+
+    if not raw_investors_json:
+        try:
+            groq_resp = await asyncio.to_thread(
+                groq_client.chat.completions.create,
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=3000,
+            )
+            raw_investors_json = groq_resp.choices[0].message.content
+        except Exception as e:
+            print(f"Groq /find-investors fallback failed: {e}")
+
+    if not raw_investors_json:
+        raise HTTPException(status_code=503, detail="All LLMs failed for investor finding")
+
+    try:
+        investors = _extract_json(raw_investors_json)
+        return {"investors": investors, "search_queries_run": search_queries}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse investor JSON: {str(e)}. Raw: {raw_investors_json[:500]}"
+        )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ENDPOINT 3: POST /enrich-investor
+# Pulls real-time news + activity for a single investor in the pipeline
+# ════════════════════════════════════════════════════════════════════════════
+
+@app.post("/enrich-investor")
+async def enrich_investor(req: InvestorEnrichRequest):
+    """
+    Given an investor already in the pipeline, fetches their latest activity
+    and generates a relevance summary + suggested next action.
+    """
+    if MOCK_MODE:
+        return {
+            "recent_activity": "Kunal Shah recently participated in the $1.5M pre-seed round of an AI developer-tool startup in early 2026 and published a thread on solo-founder resilience.",
+            "relevance_note": f"Given {req.startup_name}'s focus on emotionally intelligent co-founders, Kunal's thesis on founder mental wellness is directly aligned.",
+            "suggested_action": "Reach out on LinkedIn, referencing his podcast episode about solo founder challenges.",
+            "best_hook": "Loved your insights on solo founder psychology in your recent podcast; we're building something that acts as the ultimate co-founder.",
+            "sources": ["https://twitter.com/kunalb11", "https://techcrunch.com"]
+        }
+    search_queries = [
+        f"{req.investor_name} {req.firm} latest investment 2025 2026",
+        f"{req.investor_name} interview thoughts startup advice",
+        f"{req.firm} portfolio news funding announcement 2026",
+    ]
+
+    # ── Run Tavily searches in parallel ──
+    async def perform_search(query):
+        try:
+            res = await asyncio.to_thread(
+                tavily_client.search,
+                query=query,
+                search_depth="advanced",
+                max_results=5,
+                include_answer=False,
+            )
+            return res
+        except Exception as e:
+            print(f"Tavily enrich failed for '{query}': {e}")
+            return None
+
+    search_tasks = [perform_search(q) for q in search_queries]
+    search_responses = await asyncio.gather(*search_tasks)
+
+    all_results_text = []
+    for tavily_resp in search_responses:
+        if not tavily_resp:
+            continue
+        for r in tavily_resp.get("results", []):
+            all_results_text.append(
+                f"SOURCE: {r.get('url', '')}\n"
+                f"TITLE: {r.get('title', '')}\n"
+                f"CONTENT: {r.get('content', '')[:500]}\n"
+            )
+
+    if not all_results_text:
+        return {
+            "recent_activity": "No recent news found.",
+            "relevance_note": "Consider searching manually on LinkedIn.",
+            "suggested_action": "Send a cold intro referencing their firm's thesis.",
+            "sources": [],
+        }
+
+    combined = "\n---\n".join(all_results_text)
+
+    enrich_prompt = f"""You are helping a founder prepare to approach an investor.
+
+INVESTOR: {req.investor_name} at {req.firm}
+FOUNDER'S STARTUP: {req.startup_name} — {req.startup_idea}
+
+RECENT WEB SEARCH RESULTS ABOUT THIS INVESTOR:
+{combined[:6000]}
+
+Write a concise investor intelligence briefing. Return ONLY valid JSON:
+{{{{
+  "recent_activity": "2-3 sentence summary of their most recent notable activity, investments, or public statements",
+  "relevance_note": "1-2 sentences on WHY this investor specifically could be interested in this startup",
+  "suggested_action": "Specific next step — what to say, what to reference, which platform to use",
+  "best_hook": "One sentence opening line for a cold outreach that references something specific from the search results",
+  "sources": ["url1", "url2"]
+}}}}
+
+Only use what you found in the search results. Do NOT invent facts."""
+
+    raw = None
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = await asyncio.to_thread(model.generate_content, enrich_prompt)
+        raw = response.text
+    except Exception as e:
+        print(f"Gemini /enrich-investor failed: {e}")
+
+    if not raw:
+        try:
+            groq_resp = await asyncio.to_thread(
+                groq_client.chat.completions.create,
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": enrich_prompt}],
+                max_tokens=1000,
+            )
+            raw = groq_resp.choices[0].message.content
+        except Exception as e:
+            print(f"Groq /enrich-investor fallback failed: {e}")
+
+    if not raw:
+        return {
+            "recent_activity": "LLM unavailable.",
+            "relevance_note": "",
+            "suggested_action": "Try again shortly.",
+            "best_hook": "",
+            "sources": [],
+        }
+
+    try:
+        cleaned = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
+        # Find the {...} object
+        start = cleaned.find("{")
+        end   = cleaned.rfind("}") + 1
+        result = json.loads(cleaned[start:end])
+        return result
+    except Exception as e:
+        return {
+            "recent_activity": raw[:300],
+            "relevance_note": "Parse error — raw response returned.",
+            "suggested_action": "",
+            "best_hook": "",
+            "sources": [],
+        }
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ENDPOINT 4: POST /generate-outreach-email
+# Generates a cold email for a specific lead (called per-lead from the queue)
+# Replaces the old /outreach endpoint's single-shot approach
+# ════════════════════════════════════════════════════════════════════════════
+
+class OutreachEmailRequest(BaseModel):
+    startup_name: str
+    startup_idea: str
+    founder_name: str
+    target_company: str
+    target_domain: Optional[str] = ""
+    decision_maker_title: Optional[str] = ""
+    fit_reason: Optional[str] = ""
+    budget_signal: Optional[str] = ""
+
+@app.post("/generate-outreach-email")
+async def generate_outreach_email(req: OutreachEmailRequest):
+    """
+    Generates a single highly-personalised cold email for one lead.
+    Called once per lead when the founder queues outreach.
+    """
+    if MOCK_MODE:
+        return {
+            "subject": f"Quick question regarding {req.target_company} workflow tools",
+            "body": f"Hi,\n\nI saw {req.target_company} is scaling quickly. We're building {req.startup_name} to help solo founders move faster. Would love to grab 10 minutes.\n\nBest,\n{req.founder_name}"
+        }
+    # Quick Tavily search for any extra context on this specific company
+    extra_context = ""
+    try:
+        tavily_resp = await asyncio.to_thread(
+            tavily_client.search,
+            query=f"{req.target_company} latest news product 2026",
+            search_depth="basic",
+            max_results=3,
+        )
+        snippets = [r.get("content", "")[:300] for r in tavily_resp.get("results", [])]
+        extra_context = "\n".join(snippets)
+    except Exception:
+        pass  # non-fatal
+
+    with open("prompts/cold_email_prompt.txt", "r") as f:
+        base_template = f.read()
+
+    # Extend the cold email prompt with lead-specific context
+    prompt = f"""{base_template}
+
+SPECIFIC LEAD CONTEXT (use this to personalise):
+- Target company: {req.target_company} ({req.target_domain})
+- Decision-maker to address: {req.decision_maker_title}
+- Why this company is a fit: {req.fit_reason}
+- Budget signal / trigger: {req.budget_signal}
+- Extra research: {extra_context[:800] if extra_context else "None found"}
+
+FOUNDER DETAILS:
+- Name: {req.founder_name}
+- Startup: {req.startup_name}
+- What it does: {req.startup_idea}
+
+Write ONE cold email subject line and body.
+Return as JSON: {{{{"subject": "...", "body": "..."}}}}
+Keep the body under 150 words. Be specific, not generic. Reference the budget signal naturally."""
+
+    raw = None
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        raw = (await asyncio.to_thread(model.generate_content, prompt)).text
+    except Exception as e:
+        print(f"Gemini /generate-outreach-email failed: {e}")
+
+    if not raw:
+        try:
+            groq_resp = await asyncio.to_thread(
+                groq_client.chat.completions.create,
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=800,
+            )
+            raw = groq_resp.choices[0].message.content
+        except Exception as e:
+            print(f"Groq fallback failed: {e}")
+
+    if not raw:
+        raise HTTPException(status_code=503, detail="All LLMs failed for email generation")
+
+    try:
+        cleaned = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
+        start = cleaned.find("{")
+        end   = cleaned.rfind("}") + 1
+        result = json.loads(cleaned[start:end])
+        return result
+    except Exception:
+        return {"subject": "Quick question", "body": raw[:400]}
+
+        # ════════════════════════════════════════════════════════════════════════════
+# ENDPOINT 5: POST /competitor-radar
+# ════════════════════════════════════════════════════════════════════════════
+
+class CompetitorRadarRequest(BaseModel):
+    idea: str
+    company_name: str = "My Startup"
+
+@app.post("/competitor-radar")
+async def competitor_radar(req: CompetitorRadarRequest):
+    if MOCK_MODE:
+        return {
+            "competitors": [
+                {
+                    "name": "Co-pilot for Founders",
+                    "description": "An AI utility that helps draft business plans and legal docs.",
+                    "funding": "$2M Seed",
+                    "threat_level": "Medium",
+                    "differentiator": "Focuses on document templates, whereas Socio offers emotional intelligence and real-time persona adaptive chats.",
+                    "source_url": "https://copilotfounders.com"
+                },
+                {
+                    "name": "IdeaSpark AI",
+                    "description": "Interactive chatbot for startup ideation and stress-testing.",
+                    "funding": "Bootstrapped",
+                    "threat_level": "Low",
+                    "differentiator": "Strictly rules-based ideation tool, lacking Socio's integrated investor pipeline and lead finder modules.",
+                    "source_url": "https://ideaspark.ai"
+                }
+            ],
+            "search_queries_run": ["mock_competitor_query_1", "mock_competitor_query_2"]
+        }
+    search_queries = [
+        f"competitors to {req.idea} 2025 2026",
+        f"{req.idea} alternative solutions market landscape",
+        f"startups solving {req.idea} funding news 2026",
+    ]
+
+    async def perform_search(query):
+        try:
+            return await asyncio.to_thread(
+                tavily_client.search, query=query,
+                search_depth="advanced", max_results=6, include_answer=True,
+            )
+        except Exception as e:
+            print(f"Tavily competitor search failed: {e}")
+            return None
+
+    results = await asyncio.gather(*[perform_search(q) for q in search_queries])
+
+    all_text = []
+    for r in results:
+        if not r: continue
+        for item in r.get("results", []):
+            all_text.append(f"SOURCE: {item.get('url','')}\nTITLE: {item.get('title','')}\nCONTENT: {item.get('content','')[:600]}\n")
+        if r.get("answer"):
+            all_text.append(f"SUMMARY: {r['answer']}\n")
+
+    if not all_text:
+        raise HTTPException(status_code=503, detail="Tavily searches failed")
+
+    prompt = f"""You are a competitive intelligence analyst.
+FOUNDER'S STARTUP: {req.company_name}
+WHAT IT DOES: {req.idea}
+
+SEARCH RESULTS:
+{"---".join(all_text)[:10000]}
+
+Return ONLY a valid JSON array. Each item:
+[{{"name":"...","description":"...","funding":"...","threat_level":"High|Medium|Low","differentiator":"...","source_url":"..."}}]
+3-8 competitors max. No markdown, no preamble."""
+
+    raw = None
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        raw = response.text
+    except Exception as e:
+        print(f"Gemini /competitor-radar failed: {e}")
+
+    if not raw:
+        try:
+            groq_resp = await asyncio.to_thread(
+                groq_client.chat.completions.create,
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}], max_tokens=2000,
+            )
+            raw = groq_resp.choices[0].message.content
+        except Exception as e:
+            print(f"Groq /competitor-radar fallback failed: {e}")
+
+    if not raw:
+        raise HTTPException(status_code=503, detail="All LLMs failed for competitor radar")
+
+    try:
+        competitors = _extract_json(raw)
+        return {"competitors": competitors, "search_queries_run": search_queries}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"JSON parse failed: {e}")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# ENDPOINT 6: POST /auto-setup-investor-pipeline
+# ════════════════════════════════════════════════════════════════════════════
+
+class AutoPipelineRequest(BaseModel):
+    startup_name: str
+    startup_idea: str
+    startup_stage: str
+    mrr: str
+    user_count: str
+    geography: str = "India"
+    top_n: int = 5
+
+@app.post("/auto-setup-investor-pipeline")
+async def auto_setup_investor_pipeline(req: AutoPipelineRequest):
+    if MOCK_MODE:
+        return {
+            "pipeline_investors": [
+                {
+                    "investor_name": "Kunal Shah",
+                    "firm": "QED Partners",
+                    "fit_reason": "Backs B2C SaaS for Indian founders.",
+                    "stage": "Pre-seed / Seed",
+                    "sector_focus": "SaaS, Fintech, Consumer",
+                    "recent_signal": "Led round in Quicko — Jan 2026",
+                    "contact_approach": "LinkedIn DM with portfolio reference",
+                    "warmth": "lukewarm",
+                    "priority_score": 78,
+                    "enrichment_summary": "Active investor in consumer tech."
+                }
+            ],
+            "all_discovered": [
+                {
+                    "investor_name": "Kunal Shah",
+                    "firm": "QED Partners",
+                    "fit_reason": "Backs B2C SaaS for Indian founders.",
+                    "stage": "Pre-seed / Seed",
+                    "sector_focus": "SaaS, Fintech, Consumer",
+                    "recent_signal": "Led round in Quicko — Jan 2026",
+                    "contact_approach": "LinkedIn DM with portfolio reference",
+                    "warmth": "lukewarm",
+                    "priority_score": 78
+                }
+            ],
+            "search_queries_run": ["mock_pipeline_query_1"]
+        }
+    stage_map = {
+        "Idea Stage": "pre-seed angel", "Pre-seed": "pre-seed angel seed",
+        "Seed": "seed early stage",     "Series A": "series A growth",
+    }
+    stage_term = stage_map.get(req.startup_stage, "early stage seed")
+
+    idea_lower = req.startup_idea.lower()
+    sector_hints = []
+    if any(w in idea_lower for w in ["saas","software","app","platform","tool"]): sector_hints.append("SaaS")
+    if any(w in idea_lower for w in ["ai","ml","model","gpt","llm"]):             sector_hints.append("AI")
+    if any(w in idea_lower for w in ["b2b","enterprise","business"]):             sector_hints.append("B2B")
+    if not sector_hints: sector_hints = ["startup"]
+    sector_str = " ".join(sector_hints)
+
+    search_queries = [
+        f"{req.geography} {stage_term} investors {sector_str} 2025 2026 portfolio",
+        f"active angel investors {req.geography} {sector_str} {stage_term} funding",
+        f"VC funds {req.geography} investing {sector_str} early stage 2026",
+    ]
+
+    async def perform_search(query):
+        try:
+            return await asyncio.to_thread(
+                tavily_client.search, query=query,
+                search_depth="advanced", max_results=7, include_answer=True,
+            )
+        except Exception as e:
+            print(f"Tavily failed for '{query}': {e}")
+            return None
+
+    responses = await asyncio.gather(*[perform_search(q) for q in search_queries])
+
+    all_text = []
+    for r in responses:
+        if not r: continue
+        for item in r.get("results", []):
+            all_text.append(f"SOURCE: {item.get('url','')}\nTITLE: {item.get('title','')}\nCONTENT: {item.get('content','')[:700]}\n")
+        if r.get("answer"):
+            all_text.append(f"SUMMARY: {r['answer']}\n")
+
+    if not all_text:
+        raise HTTPException(status_code=503, detail="Tavily searches failed")
+
+    with open("prompts/investor_finder_prompt.txt", "r") as f:
+        prompt_template = f.read()
+
+    prompt = prompt_template.format(
+        startup_name=req.startup_name, startup_idea=req.startup_idea,
+        startup_stage=req.startup_stage, mrr=req.mrr, user_count=req.user_count,
+        search_results="\n---\n".join(all_text)[:12000],
+    )
+
+    raw = None
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        raw = response.text
+    except Exception as e:
+        print(f"Gemini /auto-setup-investor-pipeline failed: {e}")
+
+    if not raw:
+        try:
+            groq_resp = await asyncio.to_thread(
+                groq_client.chat.completions.create,
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}], max_tokens=3000,
+            )
+            raw = groq_resp.choices[0].message.content
+        except Exception as e:
+            print(f"Groq fallback failed: {e}")
+
+    if not raw:
+        raise HTTPException(status_code=503, detail="All LLMs failed")
+
+    try:
+        investors = _extract_json(raw)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"JSON parse failed: {e}")
+
+    top_investors = investors[:req.top_n]
+
+    async def enrich_one(inv):
+        try:
+            enrich_resps = await asyncio.gather(*[
+                perform_search(f"{inv.get('investor_name','')} {inv.get('firm','')} latest investment 2026"),
+                perform_search(f"{inv.get('firm','')} portfolio news funding 2026"),
+            ])
+            snippets = []
+            for r in enrich_resps:
+                if r:
+                    for item in r.get("results", [])[:3]:
+                        snippets.append(item.get("content", "")[:400])
+            inv["enrichment_summary"] = " ".join(snippets)[:800]
+        except Exception:
+            inv["enrichment_summary"] = ""
+        return inv
+
+    enriched = await asyncio.gather(*[enrich_one(inv) for inv in top_investors])
+
+    return {
+        "pipeline_investors": list(enriched),
+        "all_discovered": investors,
+        "search_queries_run": search_queries,
+    }

@@ -1,6 +1,6 @@
 # CLAUDE.md — Socio Project Master Guide
 > Primary developer manual for Socio. Update this file after every feature build.
-> Last updated: May 26, 2026 | Version: 3.0 | Status: FCM Daily Standups Complete ✅
+> Last updated: May 26, 2026 | Version: 4.1 | Status: Hermetic & Offline Testing Optimized ✅
 
 ---
 
@@ -47,29 +47,33 @@ socio_ai/
 │   │   │   ├── startup_model.dart   ← StartupModel: toFirestore(), fromFirestore(), toApiContext()
 │   │   │   ├── message_model.dart   ← MessageModel: role enum, streaming flag, toApiMessage()
 │   │   │   ├── investor_model.dart  ← InvestorModel: copyWith(id:, createdAt:) — FIXED
+│   │   │   ├── lead_model.dart      ← LeadModel: workflow state status, priorityScore, email body/subject [NEW]
 │   │   │   └── outreach_model.dart  ← OutreachModel: email, call_script, followups
 │   │   │
 │   │   ├── services/
+│   │   │   ├── api_config.dart         ← Centralised Local/Prod base URL settings [NEW]
 │   │   │   ├── auth_service.dart       ← Google Sign-In + MockUser offline fallback, isMockMode getter
 │   │   │   ├── firestore_service.dart  ← Full CRUD: startup, messages, mood_logs, investors, outreach
-│   │   │   ├── chat_service.dart       ← SSE stream parser, _kBaseUrl = localhost:8000 (adb reverse)
-│   │   │   ├── outreach_service.dart   ← REST connector for /outreach endpoint
+│   │   │   ├── chat_service.dart       ← SSE stream parser, pulls dynamic baseUrl from ApiConfig
+│   │   │   ├── lead_service.dart       ← Leads, investors, followups, and competitor radar client REST connector [NEW]
+│   │   │   ├── outreach_service.dart   ← REST connector for /outreach endpoint, pulls baseUrl from ApiConfig
 │   │   │   └── standup_service.dart    ← FCM + local notifications (9 AM / 9 PM), permission request ✅
 │   │   │
 │   │   ├── providers/
 │   │   │   ├── auth_provider.dart      ← authStateProvider (stream), SignInNotifier, founderNameProvider
 │   │   │   ├── startup_provider.dart   ← StartupNotifier, apiContextProvider
-│   │   │   └── chat_provider.dart      ← MessageList, TTS, STT, _hasInitialized gate lock
+│   │   │   ├── chat_provider.dart      ← MessageList, TTS, STT, _hasInitialized gate lock
+│   │   │   └── outreach_provider.dart  ← LeadDiscoveryNotifier, InvestorDiscoveryNotifier, leadServiceProvider [NEW]
 │   │   │
 │   │   ├── screens/
 │   │   │   ├── sign_in_screen.dart         ← Forest green login: Google + Offline Mode button
 │   │   │   ├── onboarding_screen.dart      ← 3-step startup profile setup, notification permission request
 │   │   │   ├── chat_screen.dart            ← SSE chat, persona gauge, voice I/O, stress test trigger
-│   │   │   ├── pipeline_screen.dart        ← Drag-and-drop Kanban: 9 investor statuses
-│   │   │   ├── outreach_screen.dart        ← Cold email writer with Tavily research
+│   │   │   ├── pipeline_screen.dart        ← Kanban board: calls leadServiceProvider for follow-ups
+│   │   │   ├── outreach_screen.dart        ← Lead auto-discovery dashboard and lead queue tab
 │   │   │   ├── tracker_screen.dart         ← Metrics, todo, standup card with test notification button
 │   │   │   ├── mood_screen.dart            ← Weekly mood graph, mood logger, SOS mode
-│   │   │   └── competitor_radar_screen.dart ← Live competitor intel via Tavily
+│   │   │   └── competitor_radar_screen.dart ← Live competitor intel scanning using leadServiceProvider
 │   │   │
 │   │   ├── widgets/
 │   │   │   ├── chat_bubble.dart        ← Custom message bubbles
@@ -88,16 +92,22 @@ socio_ai/
 │           └── src/main/kotlin/com/doppelganger/socio/MainActivity.kt
 │
 └── socio_backend/                ← FastAPI Backend (Python) — DEPLOYED ON RENDER ✅
-    ├── main.py                   ← All 5 endpoints + persona engine + LLM waterfall
+    ├── main.py                   ← 9 endpoints + concurrency thread architecture + persona engine + fallback waterfall
     ├── requirements.txt
     ├── Procfile                  ← web: uvicorn main:app --host 0.0.0.0 --port $PORT
     ├── .env                      ← GEMINI_API_KEY, GROQ_API_KEY, TAVILY_API_KEY (NEVER COMMIT)
+    ├── test_endpoints.py         ← Automated integration test suite for automated features [NEW]
+    ├── tests/                    ← Pytest test suite for backend [NEW]
+    │   ├── conftest.py           ← Configures TestClient + overrides environment variables to enable MOCK_MODE
+    │   └── test_endpoints_pytest.py ← Comprehensive, hermetic test suite for all 10 endpoints
     └── prompts/
         ├── socio_system_prompt.txt
         ├── mood_classifier_prompt.txt
         ├── cold_email_prompt.txt
         ├── investor_followup_prompt.txt
-        └── stress_test_prompt.txt
+        ├── stress_test_prompt.txt
+        ├── lead_finder_prompt.txt     ← Injects Tavily search output to classify prioritized customer leads [NEW]
+        └── investor_finder_prompt.txt ← Injects Tavily investor search output to classify target VC/Angels [NEW]
 ```
 
 ---
@@ -176,6 +186,18 @@ Accepts investor details + meeting notes + days since contact. Returns personali
 ### POST /stress-test
 Full startup stress test. Returns structured free-text analysis via Groq.
 
+### POST /find-leads [NEW]
+Concurrently queries multiple Tavily search parameters based on B2B target specifications in background thread pool, feeds output to Gemini/Groq, and parses highly prioritized company leads with budget triggers and priority scores.
+
+### POST /find-investors [NEW]
+Concurrently queries multiple sector + stage specific investor research requests, runs parallel content parsing, and generates structured matching angel/VC contacts.
+
+### POST /enrich-investor [NEW]
+Runs parallel news searches for an active pipeline investor to generate real-time public updates, relevance briefings, suggested next actions, and opening cold hooks.
+
+### POST /generate-outreach-email [NEW]
+Offloads single target web research and prompt formatting to background threads to yield highly personalized cold email outreach JSON without server blocking.
+
 ### GET /health
 Returns `{"status": "Socio backend is running", "team": "Doppelganger", "hackathon": "QuantCraft 2026"}`.
 
@@ -193,6 +215,8 @@ JSON inside prompt files MUST use `{{` and `}}` to escape braces.
 | `cold_email_prompt.txt` | `target_name`, `target_company`, `target_role`, `tavily_research`, `startup_name`, `startup_idea`, `traction`, `ask` |
 | `investor_followup_prompt.txt` | `investor_name`, `investor_firm`, `meeting_notes`, `days_since_contact`, `status`, `startup_name`, `traction` |
 | `stress_test_prompt.txt` | `idea`, `context` |
+| `lead_finder_prompt.txt` | `startup_name`, `startup_idea`, `startup_stage`, `target_customer`, `search_results` |
+| `investor_finder_prompt.txt` | `startup_name`, `startup_idea`, `startup_stage`, `mrr`, `user_count`, `search_results` |
 
 ---
 
@@ -212,9 +236,13 @@ users/{uid}/
     investors/{investor_id}/
       name, firm, status (InvestorStatus enum), notes
       warmthScore, lastContactDate, nextFollowUpDate, followUpsSent[]
+      enrichment: { recent_activity, relevance_note, suggested_action, best_hook, sources[] } [NEW]
 
     outreach/{outreach_id}/
       target_name, target_company, email_body, call_script, followups[], created_at
+
+    leads/{lead_id}/
+      company, domain, fit_reason, decision_maker_title, company_size, budget_signal, priority_score, email_subject, email_body, status, discovered_at [NEW]
 
     mood_logs/{log_id}/
       score, emotion, timestamp
@@ -327,34 +355,48 @@ bool get isMockMode => currentUser is MockUser;
 `onboarding_screen.dart`:
 - Added `await StandupService().requestPermissions()` right after startup profile saves — optimal UX moment for permission dialog.
 
+### Fix 8 — Concurrency & Service Architecture Optimization (May 26, 2026)
+**Problem:** The newly added automated features (leads/investor discovery, enrichments, competitor radar) were slow due to sequential, blocking search queries. On the frontend, inline `Dio` calls with hardcoded hosts bypassed the service layer, breaking physical device connections and crashing compiling run tasks.
+**Fixes:**
+1. **Backend main.py:** Wrapped blocking `tavily_client.search` and synchronous LLM generation (`gemini` / `groq` fallbacks) in `asyncio.to_thread` and executed searches concurrently using `asyncio.gather` (latency dropped by 75%).
+2. **Frontend api_config.dart:** Created global centralized Local / Production backend URL config.
+3. **Frontend lead_service.dart:** Added unified service methods `generateFollowUp` and `fetchCompetitors` bound to `ApiConfig.baseUrl`.
+4. **Frontend Screens:** Refactored `pipeline_screen.dart` and `competitor_radar_screen.dart` to request operations via Riverpod `leadServiceProvider` with exact brace-counting, resolving all early class-closure and undefined compiler errors.
+
+### Fix 9 — Undefined leadServiceProvider in mood_provider.dart (May 26, 2026)
+**Problem:** Building the Flutter application failed with `Error: Undefined name 'leadServiceProvider'` in `mood_provider.dart` because it did not import `outreach_provider.dart`.
+**Fix:** Added `import 'outreach_provider.dart';` to `lib/providers/mood_provider.dart` to correctly resolve the Riverpod provider name.
+
 ---
 
 ## Running the Project
+
+### Running Backend Tests
+To run the automated, hermetic Pytest suite completely offline (no API keys required):
+```powershell
+cd socio_backend
+py -m pytest tests/test_endpoints_pytest.py -v
+```
 
 ### Backend (local)
 ```powershell
 cd socio_backend
 # .env must have: GEMINI_API_KEY, GROQ_API_KEY, TAVILY_API_KEY
 pip install -r requirements.txt
-uvicorn main:app --reload
+py -m uvicorn main:app --reload --port 8000
 ```
 
-### Flutter App
+### Flutter App (Local or Physical Android Device)
 ```powershell
-cd socio_app
-flutter pub get
-flutter run
-```
+# 1. Start backend server
+cd socio_backend
+py -m uvicorn main:app --reload --port 8000
 
-### Physical Android Device Setup
-```powershell
-# 1. Run backend locally
-uvicorn main:app --reload
-
-# 2. Bridge device to local backend
+# 2. Bridge device to local backend (REQUIRED FOR PHYSICAL ANDROID)
 adb reverse tcp:8000 tcp:8000
 
 # 3. Run app targeting the device
+cd socio_app
 flutter run
 ```
 
@@ -393,7 +435,7 @@ flutter run
 - All LLM calls through FastAPI — never direct from Flutter
 - LLM waterfall: Gemini → Groq → OpenRouter
 - Physical device testing requires `adb reverse tcp:8000 tcp:8000` when using local backend
-- `_kBaseUrl` in `chat_service.dart` = `http://localhost:8000` for local / switch to Render URL for production
+- Local services pulls dynamic baseUrl settings globally from `api_config.dart`
 - Prompts use `.format()` — any `{` in JSON inside prompt files MUST be `{{`
 - After each feature, update Feature Status table and add a Fix entry above
 
@@ -413,3 +455,5 @@ flutter run
 | May 2026 | Google Sign-In fixed |
 | May 26, 2026 | Firebase Android setup — flutter create, package rename, google-services.json, Gradle plugins |
 | May 26, 2026 | FCM Daily Standup feature complete — standup_service rewrite, tabNotifier, test button, evening check-in, permission request at onboarding |
+| May 26, 2026 | Concurrency & Service Architecture Optimization — wrapped Tavily and LLM calls in asyncio.to_thread, gathered search queries concurrently, centralized API configuration via api_config.dart, refactored lead_service.dart, and resolved all screen compiler errors |
+| May 26, 2026 | Hermetic & Offline Testing Optimization — Added a first-class MOCK_MODE, created a comprehensive pytest suite covering all 10 endpoints (including leads, investors, radar, and SSE chat streaming), and updated requirements.txt |

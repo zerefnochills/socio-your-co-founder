@@ -1,16 +1,10 @@
+// services/outreach_service.dart
+// Socio — Handles cold outreach email generation via Tavily web research and Gemini/Groq
+
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// OutreachService — calls FastAPI /outreach
-// Backend: Tavily researches target → Gemini generates cold email,
-//          call script, and Day 1/3/7 follow-up sequence
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ── Config ────────────────────────────────────────────────────────────────────
-final String _kBaseUrl = kIsWeb ? 'http://localhost:8000' : 'http://10.0.2.2:8000'; // Dynamic localhost for Web / Android emulator
-
+import 'api_config.dart';
 
 // ── Data models ───────────────────────────────────────────────────────────────
 
@@ -93,7 +87,7 @@ class OutreachResult {
 class OutreachService {
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: _kBaseUrl,
+      baseUrl: ApiConfig.baseUrl,
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 45), // Tavily can be slow
       headers: {'Content-Type': 'application/json'},

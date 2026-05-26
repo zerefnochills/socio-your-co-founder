@@ -3,3 +3,8 @@ uvicorn[standard]
 httpx
 python-dotenv
 pydantic
+google-generativeai
+groq
+tavily-python
+pytest
+pytest-asyncio
